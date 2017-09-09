@@ -62,7 +62,6 @@ public class DiscordSync {
     @Listener
     public void init(GameInitializationEvent event) {
         CommandBus.create(this).register(this).submit();
-        DiscordClientService.markStarted();
         refresh(null);
     }
 
@@ -82,11 +81,11 @@ public class DiscordSync {
         int port = config.get(8080, "auth", "port");
 
         Config channels = new Config(configDir.resolve("channels.json"));
-        String message = channels.get("{0}: {1}", "format", "message");
+        String message = channels.get("{1}", "format", "message");
         String connect = channels.get("```{0} joined the server```", "format", "connect");
         String disconnect = channels.get("```{0} left the server```", "format", "disconnect");
-        String start = channels.get("```Server starting...```", "format", "start");
-        String stop = channels.get("```Server stopping...```", "format", "stop");
+        String start = channels.get("```Server is starting...```", "format", "start");
+        String stop = channels.get("```Server is stopping...```", "format", "stop");
         String userAvatar = channels.get("", "format", "avatar");
         DiscordChannel.Format format = new DiscordChannel.Format(message, connect, disconnect, start, stop, userAvatar);
 

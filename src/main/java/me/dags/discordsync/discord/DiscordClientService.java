@@ -31,7 +31,7 @@ import java.util.function.Supplier;
  */
 public class DiscordClientService implements UserRoleAddListener, UserRoleRemoveListener, ServerMemberBanListener, ServerMemberUnbanListener {
 
-    private static volatile boolean started = false;
+    private static volatile boolean firstStart = true;
 
     private final Logger logger = LoggerFactory.getLogger("DiscordClient");
     private final Consumer<DiscordClientService> callback;
@@ -65,8 +65,8 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
                 logger.info("Successfully connected to Discord");
                 callback.accept(instance);
                 connected = true;
-                if (started) {
-                    started = false;
+                if (firstStart) {
+                    firstStart = false;
                     Sponge.getServiceManager().provide(DiscordMessageService.class)
                             .ifPresent(DiscordMessageService::sendStarting);
                 }
@@ -135,10 +135,6 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
         } catch (InterruptedException | ExecutionException e) {
             return Collections.emptySet();
         }
-    }
-
-    public static void markStarted() {
-        started = true;
     }
 
     public static void create(String guild, String token, DiscordMessageService messageService, Consumer<DiscordClientService> callback) {
