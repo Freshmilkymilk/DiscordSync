@@ -1,0 +1,45 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version '1.2.4'
+    id 'org.spongepowered.plugin' version '0.8.1'
+}
+
+group = 'me.dags'
+version = '1.0-SNAPSHOT'
+def spongeVersion = '5.2.0-SNAPSHOT'
+
+sponge {
+    plugin.id = 'discordsync'
+    plugin.meta {
+        name = 'DiscordSync'
+        version = '1.0'
+        description = 'Sync your server with Discord'
+    }
+}
+
+repositories {
+    mavenCentral()
+    jcenter()
+    maven { url 'http://repo.bastian-oppermann.de' }
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    compileOnly "org.spongepowered:spongeapi:${spongeVersion}"
+    compile 'com.sparkjava:spark-core:2.6.0'
+    compile 'de.btobastian.javacord:javacord:2.0.17'
+    compile 'com.github.dags-:CommandBus:2.0.0-TEST-6'
+    compile ('com.github.dags-:TextMU:0.1') {
+        transitive = false
+    }
+}
+
+shadowJar {
+    relocate 'me.dags.commandbus.', 'me.dags.discordsync.libs.commandbus.'
+    relocate 'me.dags.textmu.', 'me.dags.discordsync.libs.textmu.'
+    relocate 'spark.', 'me.dags.discordsync.libs.spark.'
+    archiveName = "${baseName}-${version}-${spongeVersion}.jar"
+    classifier = null
+}
+
+jar.dependsOn shadowJar
+jar.enabled = false
