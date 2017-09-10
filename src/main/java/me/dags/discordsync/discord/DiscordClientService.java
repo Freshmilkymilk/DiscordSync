@@ -6,7 +6,6 @@ import de.btobastian.javacord.Javacord;
 import de.btobastian.javacord.entities.Server;
 import de.btobastian.javacord.entities.User;
 import de.btobastian.javacord.entities.permissions.Role;
-import de.btobastian.javacord.listener.Listener;
 import de.btobastian.javacord.listener.server.ServerMemberBanListener;
 import de.btobastian.javacord.listener.server.ServerMemberUnbanListener;
 import de.btobastian.javacord.listener.user.UserRoleAddListener;
@@ -44,7 +43,7 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
         this.api = Javacord.getApi(token, true);
         this.callback = callback;
         this.guild = guild;
-        registerListener(this);
+        this.api.registerListener(this);
     }
 
     public boolean isConnected() {
@@ -115,8 +114,11 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
         PluginHelper.getInstance().async(async, callback, Collections.emptySet());
     }
 
-    private void registerListener(Listener listener) {
-        api.registerListener(listener);
+    public void role() {
+        Server server = api.getServerById(guild);
+        if (server == null) {
+            return;
+        }
     }
 
     private Set<String> getRolesBlocking(String snowflake) {
@@ -139,7 +141,7 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
 
     public static void create(String guild, String token, DiscordMessageService messageService, Consumer<DiscordClientService> callback) {
         DiscordClientService service = new DiscordClientService(guild, token, callback);
-        service.registerListener(messageService);
+        service.api.registerListener(messageService);
         service.connect();
     }
 }

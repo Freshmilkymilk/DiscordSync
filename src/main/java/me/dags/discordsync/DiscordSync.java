@@ -13,6 +13,8 @@ import me.dags.discordsync.event.AuthUserEvent;
 import me.dags.discordsync.event.ChangeRoleEvent;
 import me.dags.discordsync.storage.Config;
 import me.dags.discordsync.storage.FileUserStorage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.config.ConfigDir;
@@ -26,18 +28,29 @@ import org.spongepowered.api.event.game.state.GameStoppingServerEvent;
 import org.spongepowered.api.event.message.MessageChannelEvent;
 import org.spongepowered.api.event.network.ClientConnectionEvent;
 import org.spongepowered.api.plugin.Plugin;
+import org.spongepowered.api.service.permission.PermissionService;
+import org.spongepowered.api.service.permission.Subject;
+import org.spongepowered.api.service.permission.SubjectData;
 import org.spongepowered.api.text.Text;
+import org.spongepowered.api.text.action.TextActions;
+import org.spongepowered.api.text.channel.MessageChannel;
 import org.spongepowered.api.text.format.TextColors;
+import org.spongepowered.api.text.format.TextStyles;
 
 import javax.inject.Inject;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 @Plugin(id = "discordsync")
 public class DiscordSync {
 
     public static final String ID = "discordsync";
+    private static final Logger logger = LoggerFactory.getLogger("DiscordSync");
 
     private final Path configDir;
 
@@ -49,7 +62,7 @@ public class DiscordSync {
     @Permission
     @Command("discord auth")
     public void auth(@Src Player player) {
-        player.sendMessage(PluginHelper.getAuthText(player.getUniqueId()));
+        player.sendMessage(getAuthText(player.getUniqueId()));
     }
 
     @Permission
@@ -118,18 +131,18 @@ public class DiscordSync {
 
     @Listener
     public void join(ClientConnectionEvent.Join event, @Root Player player) {
+        Sponge.getServiceManager().provide(DiscordMessageService.class)
+                .ifPresent(discordMessageService -> discordMessageService.sendConnect(player.getName()));
+
         Optional<DiscordAuthService> authService = Sponge.getServiceManager().provide(DiscordAuthService.class);
         if (authService.isPresent()) {
             Optional<String> snowflake = authService.get().getSnowflake(player.getUniqueId());
             if (snowflake.isPresent()) {
-                PluginHelper.syncRoles(player, snowflake.get());
+                syncRoles(player, snowflake.get());
             } else {
-                player.sendMessage(PluginHelper.getPromptText());
+                player.sendMessage(getPromptText());
             }
         }
-
-        Sponge.getServiceManager().provide(DiscordMessageService.class)
-                .ifPresent(discordMessageService -> discordMessageService.sendConnect(player.getName()));
     }
 
     @Listener
@@ -141,7 +154,7 @@ public class DiscordSync {
     @Listener
     public void chat(MessageChannelEvent.Chat event, @Root Player player) {
         Sponge.getServiceManager().provide(DiscordMessageService.class).ifPresent(messageService -> {
-            if (PluginHelper.hasPublicChannel(event)) {
+            if (hasPublicChannel(event)) {
                 String name = player.getName();
                 String message = event.getRawMessage().toPlain();
                 messageService.sendMessage(name, message);
@@ -155,7 +168,7 @@ public class DiscordSync {
         if (authService.isPresent() && authService.get().isRunning()) {
             authService.get().getStorage().setUser(event.getSnowflake(), event.getId());
             event.getUser().ifPresent(user -> {
-                PluginHelper.syncRoles(user, event.getSnowflake());
+                syncRoles(user, event.getSnowflake());
                 user.getPlayer().ifPresent(player -> {
                     Text text = Text.of("Authentication succeeded!", TextColors.GREEN);
                     player.sendMessage(text);
@@ -180,7 +193,7 @@ public class DiscordSync {
         Optional<DiscordAuthService> authService = Sponge.getServiceManager().provide(DiscordAuthService.class);
         if (authService.isPresent() && authService.get().isRunning()) {
             Optional<User> user = authService.get().getUser(event.getSubjectSnowflake());
-            user.ifPresent(u -> PluginHelper.addRoles(u, Collections.singleton(event.getRole()), true));
+            user.ifPresent(u -> addRoles(u, Collections.singleton(event.getRole()), true));
         }
     }
 
@@ -189,7 +202,97 @@ public class DiscordSync {
         Optional<DiscordAuthService> authService = Sponge.getServiceManager().provide(DiscordAuthService.class);
         if (authService.isPresent() && authService.get().isRunning()) {
             Optional<User> user = authService.get().getUser(event.getSubjectSnowflake());
-            user.ifPresent(u -> PluginHelper.removeRoles(u, Collections.singleton(event.getRole()), true));
+            user.ifPresent(u -> removeRoles(u, Collections.singleton(event.getRole()), true));
         }
+    }
+
+    private void syncRoles(User user, String snowflake) {
+        Optional<DiscordClientService> service = Sponge.getServiceManager().provide(DiscordClientService.class);
+        if (service.isPresent() && service.get().isConnected()) {
+            final User subject = user;
+            final DiscordClientService clientService = service.get();
+            user.getPlayer().ifPresent(Fmt.subdued("Syncing your roles...")::tell);
+            clientService.getRolesAsync(snowflake, roles -> {
+                getSubjectData(user).clearParents();
+                addRoles(subject, roles, false);
+                user.getPlayer().ifPresent(Fmt.subdued("Syncing complete!")::tell);
+            });
+        }
+    }
+
+    private void addRoles(User user, Set<String> roles, boolean notify) {
+        logger.info("Adding roles: {} to user: {}", roles, user.getName());
+        int matches = 0;
+        Optional<Player> player = user.getPlayer();
+        SubjectData subjectData = getSubjectData(user);
+        PermissionService perms = Sponge.getServiceManager().provideUnchecked(PermissionService.class);
+        for (Subject group : perms.getGroupSubjects().getAllSubjects()) {
+            if (roles.contains(group.getIdentifier().toLowerCase())) {
+                subjectData.addParent(SubjectData.GLOBAL_CONTEXT, group);
+                if (notify) {
+                    player.ifPresent(Fmt.subdued("You have been added to group ").stress(group.getIdentifier())::tell);
+                }
+                if (++matches > roles.size()) {
+                    break;
+                }
+            }
+        }
+    }
+
+    private void removeRoles(User user, Set<String> roles, boolean notify) {
+        logger.info("Removing roles: {} from user: {}", roles, user.getName());
+        int matches = 0;
+        Optional<Player> player = user.getPlayer();
+        SubjectData subjectData = getSubjectData(user);
+        PermissionService perms = Sponge.getServiceManager().provideUnchecked(PermissionService.class);
+        for (Subject group : perms.getGroupSubjects().getAllSubjects()) {
+            if (roles.contains(group.getIdentifier().toLowerCase())) {
+                subjectData.removeParent(SubjectData.GLOBAL_CONTEXT, group);
+                if (notify) {
+                    player.ifPresent(Fmt.subdued("You have been removed from group ").stress(group.getIdentifier())::tell);
+                }
+                if (++matches > roles.size()) {
+                    break;
+                }
+            }
+        }
+    }
+
+    private boolean hasPublicChannel(MessageChannelEvent event) {
+        MessageChannel c = event.getChannel().orElse(MessageChannel.TO_NONE);
+        return c == MessageChannel.TO_ALL
+                || c == MessageChannel.TO_PLAYERS
+                || c == Sponge.getServer().getBroadcastChannel()
+                || c.getClass().getSimpleName().equals("BoopableChannel");
+    }
+
+    private SubjectData getSubjectData(Subject subject) {
+        return subject.getTransientSubjectData();
+    }
+
+    private Text getAuthText(UUID uuid) {
+        Optional<DiscordAuthService> authService = Sponge.getServiceManager().provide(DiscordAuthService.class);
+        if (authService.isPresent()) {
+            try {
+                String url = authService.get().getSignUpURL(uuid);
+                return Text.builder("Click me to authenticate your Discord account")
+                        .color(TextColors.YELLOW)
+                        .style(TextStyles.UNDERLINE)
+                        .onClick(TextActions.openUrl(new URL(url)))
+                        .build();
+
+            } catch (MalformedURLException e) {
+                return Text.of("Service is not available right now", TextColors.GRAY);
+            }
+        }
+        return Text.of("Service is not available right now", TextColors.GRAY);
+    }
+
+    private Text getPromptText() {
+        return Text.builder("Use '/discord auth' to link your Discord account")
+                .color(TextColors.YELLOW)
+                .style(TextStyles.UNDERLINE)
+                .onClick(TextActions.suggestCommand("/discord auth"))
+                .build();
     }
 }
