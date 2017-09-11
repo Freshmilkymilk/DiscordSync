@@ -31,6 +31,14 @@ public class PluginHelper {
         return cause;
     }
 
+    public SpongeExecutorService getSync() {
+        return sync;
+    }
+
+    public SpongeExecutorService getAsync() {
+        return async;
+    }
+
     public void sync(Runnable runnable) {
         sync.submit(runnable);
     }

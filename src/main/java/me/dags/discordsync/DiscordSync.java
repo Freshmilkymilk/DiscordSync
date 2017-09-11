@@ -1,5 +1,7 @@
 package me.dags.discordsync;
 
+import com.google.common.collect.ImmutableList;
+import com.google.gson.JsonElement;
 import me.dags.commandbus.CommandBus;
 import me.dags.commandbus.annotation.Command;
 import me.dags.commandbus.annotation.Permission;
@@ -50,6 +52,7 @@ import java.util.UUID;
 public class DiscordSync {
 
     public static final String ID = "discordsync";
+    public static final String ROLE_PERMISSION = "discordsync.role.%s";
     private static final Logger logger = LoggerFactory.getLogger("DiscordSync");
 
     private final Path configDir;
@@ -93,6 +96,9 @@ public class DiscordSync {
         String url = config.get("", "auth", "url");
         int port = config.get(8080, "auth", "port");
 
+        ImmutableList.Builder<String> patrons = ImmutableList.builder();
+        config.getList(JsonElement::getAsString, "patrons").forEach(s -> patrons.add(s.toLowerCase()));
+
         Config channels = new Config(configDir.resolve("channels.json"));
         String message = channels.get("{1}", "format", "message");
         String connect = channels.get("```{0} joined the server```", "format", "connect");
@@ -110,6 +116,7 @@ public class DiscordSync {
         FileUserStorage users = new FileUserStorage(configDir.resolve("users.json"));
         DiscordAuthService.create(users, clientId, clientSecret, url, port, authService -> {
             Sponge.getServiceManager().setProvider(this, DiscordAuthService.class, authService);
+            authService.startSyncRolesTask(patrons.build());
         });
 
         DiscordMessageService messageService = DiscordMessageService.create(name, avatar, format, channel);

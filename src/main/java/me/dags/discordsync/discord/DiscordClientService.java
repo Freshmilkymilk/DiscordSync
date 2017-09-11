@@ -17,9 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.spongepowered.api.Sponge;
 
 import javax.annotation.Nullable;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
@@ -114,11 +112,34 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
         PluginHelper.getInstance().async(async, callback, Collections.emptySet());
     }
 
-    public void role() {
+    public void syncRoles(String snowflake, Map<String, Boolean> values) {
         Server server = api.getServerById(guild);
         if (server == null) {
             return;
         }
+
+        User user = server.getMemberById(snowflake);
+        if (user == null) {
+            return;
+        }
+
+        List<Role> roles = new LinkedList<>();
+        for (Role role : user.getRoles(server)) {
+            // filter out all patron roles
+            if (values.containsKey(role.getName().toLowerCase())) {
+                continue;
+            }
+            roles.add(role);
+        }
+
+        for (Role role : server.getRoles()) {
+            // only add owned roles
+            if (values.getOrDefault(role.getName().toLowerCase(), false)) {
+                roles.add(role);
+            }
+        }
+
+        server.updateRoles(user, roles.toArray(new Role[roles.size()]));
     }
 
     private Set<String> getRolesBlocking(String snowflake) {

@@ -2,21 +2,25 @@ package me.dags.discordsync.discord;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.collect.ImmutableList;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
+import me.dags.discordsync.DiscordSync;
 import me.dags.discordsync.PluginHelper;
 import me.dags.discordsync.event.AuthUserEvent;
 import me.dags.discordsync.storage.UserStorage;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.User;
+import org.spongepowered.api.service.permission.PermissionService;
+import org.spongepowered.api.service.permission.Subject;
+import org.spongepowered.api.service.permission.SubjectData;
 import org.spongepowered.api.service.user.UserStorageService;
 import spark.Request;
 import spark.Response;
 import spark.Service;
 
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -70,6 +74,28 @@ public class DiscordAuthService {
         String state = Long.toString(System.currentTimeMillis());
         sessionCache.put(state, uuid);
         return Unirest.get(loginRoute()).queryString("id", state).getUrl();
+    }
+
+    public void startSyncRolesTask(ImmutableList<String> roles) {
+        PluginHelper.getInstance().getAsync().scheduleAtFixedRate(() -> syncPatrons(roles), 5, 30, TimeUnit.SECONDS);
+    }
+
+    private void syncPatrons(List<String> roles) {
+        Optional<DiscordClientService> clientService = Sponge.getServiceManager().provide(DiscordClientService.class);
+        if (clientService.isPresent()) {
+            DiscordClientService client = clientService.get();
+            PermissionService service = Sponge.getServiceManager().provideUnchecked(PermissionService.class);
+            getStorage().iterate((uuid, snowflake) -> {
+                Subject subject = service.getUserSubjects().get(uuid.toString());
+                Map<String, Boolean> values = new HashMap<>(roles.size());
+                Map<String, Boolean> permissions = subject.getTransientSubjectData().getPermissions(SubjectData.GLOBAL_CONTEXT);
+                for (String role : roles) {
+                    String node = String.format(DiscordSync.ROLE_PERMISSION, role);
+                    values.put(role, permissions.getOrDefault(node, false));
+                }
+                client.syncRoles(snowflake, values);
+            });
+        }
     }
 
     public void stop() {

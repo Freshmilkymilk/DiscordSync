@@ -8,6 +8,9 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.function.Function;
 
 /**
  * @author dags <dags@dags.me>
@@ -54,6 +57,24 @@ public class Config {
 
     public boolean get(boolean defaultVal, String... path) {
         return mustValue(new JsonPrimitive(defaultVal), path).getAsBoolean();
+    }
+
+    public <T> Iterable<T> getList(Function<JsonElement, T> mapper, String... path) {
+        JsonObject parent = mustParent(path);
+        String key = getLastKey(path);
+        JsonArray last = parent.getAsJsonArray(key);
+        if (last == null || !last.isJsonArray()) {
+            last = new JsonArray();
+            parent.add(key, last);
+        }
+        List<T> list = new LinkedList<>();
+        for (JsonElement element : last) {
+            T t = mapper.apply(element);
+            if (t != null) {
+                list.add(t);
+            }
+        }
+        return list;
     }
 
     public Config save() {
