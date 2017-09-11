@@ -15,6 +15,8 @@ import me.dags.discordsync.event.AuthUserEvent;
 import me.dags.discordsync.event.ChangeRoleEvent;
 import me.dags.discordsync.storage.Config;
 import me.dags.discordsync.storage.FileUserStorage;
+import me.dags.textmu.MarkupSpec;
+import me.dags.textmu.MarkupTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.api.Sponge;
@@ -34,19 +36,14 @@ import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.service.permission.Subject;
 import org.spongepowered.api.service.permission.SubjectData;
 import org.spongepowered.api.text.Text;
-import org.spongepowered.api.text.action.TextActions;
 import org.spongepowered.api.text.channel.MessageChannel;
 import org.spongepowered.api.text.format.TextColors;
-import org.spongepowered.api.text.format.TextStyles;
 
 import javax.inject.Inject;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 @Plugin(id = "discordsync")
 public class DiscordSync {
@@ -56,16 +53,28 @@ public class DiscordSync {
     private static final Logger logger = LoggerFactory.getLogger("DiscordSync");
 
     private final Path configDir;
+    private final MarkupSpec spec;
+    private MarkupTemplate prompt;
+    private MarkupTemplate auth;
 
     @Inject
     public DiscordSync(@ConfigDir(sharedRoot = false) Path path) {
         configDir = path;
+        spec = MarkupSpec.create();
+        prompt = spec.template("[blue](Use [gold,underline,/discord auth](/discord auth) to link your Discord account)");
+        auth = spec.template("[blue,underline,{url}](Click me to authenticate your account)");
     }
 
     @Permission
     @Command("discord auth")
     public void auth(@Src Player player) {
-        player.sendMessage(getAuthText(player.getUniqueId()));
+        Optional<DiscordAuthService> authService = Sponge.getServiceManager().provide(DiscordAuthService.class);
+        if (authService.isPresent()) {
+            Text message = auth.with("url", authService.get().getSignUpURL(player.getUniqueId())).render();
+            player.sendMessage(message);
+        } else {
+            Fmt.error("Service not available right now");
+        }
     }
 
     @Permission
@@ -95,6 +104,11 @@ public class DiscordSync {
         String clientSecret = config.get("", "discord", "clientSecret");
         String url = config.get("", "auth", "url");
         int port = config.get(8080, "auth", "port");
+
+        String promptTemplate = config.get(prompt.toString(), "prompts", "prompt");
+        String authTemplate = config.get(auth.toString(), "prompts", "auth");
+        prompt = spec.template(promptTemplate);
+        auth = spec.template(authTemplate);
 
         ImmutableList.Builder<String> patrons = ImmutableList.builder();
         config.getList(JsonElement::getAsString, "patrons").forEach(s -> patrons.add(s.toLowerCase()));
@@ -147,7 +161,8 @@ public class DiscordSync {
             if (snowflake.isPresent()) {
                 syncRoles(player, snowflake.get());
             } else {
-                player.sendMessage(getPromptText());
+                Text message = prompt.applier().render();
+                player.sendMessage(message);
             }
         }
     }
@@ -275,31 +290,5 @@ public class DiscordSync {
 
     private SubjectData getSubjectData(Subject subject) {
         return subject.getTransientSubjectData();
-    }
-
-    private Text getAuthText(UUID uuid) {
-        Optional<DiscordAuthService> authService = Sponge.getServiceManager().provide(DiscordAuthService.class);
-        if (authService.isPresent()) {
-            try {
-                String url = authService.get().getSignUpURL(uuid);
-                return Text.builder("Click me to authenticate your Discord account")
-                        .color(TextColors.YELLOW)
-                        .style(TextStyles.UNDERLINE)
-                        .onClick(TextActions.openUrl(new URL(url)))
-                        .build();
-
-            } catch (MalformedURLException e) {
-                return Text.of("Service is not available right now", TextColors.GRAY);
-            }
-        }
-        return Text.of("Service is not available right now", TextColors.GRAY);
-    }
-
-    private Text getPromptText() {
-        return Text.builder("Use '/discord auth' to link your Discord account")
-                .color(TextColors.YELLOW)
-                .style(TextStyles.UNDERLINE)
-                .onClick(TextActions.suggestCommand("/discord auth"))
-                .build();
     }
 }
