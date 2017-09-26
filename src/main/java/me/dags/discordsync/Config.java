@@ -34,5 +34,6 @@ public class Config {
     public static class Messages {
         public String prompt = "[blue](Use [gold,underline,/discord auth](/discord auth) to link your Discord account)";
         public String auth = "[blue,underline,{url}](Click me to authenticate your account)";
+        public String add = "[blue,underline,{url}](Click me to add the chat bot to your guild)";
     }
 }

@@ -55,6 +55,7 @@ public class DiscordSync {
     private final MarkupSpec spec;
     private MarkupTemplate prompt;
     private MarkupTemplate auth;
+    private MarkupTemplate add;
 
     @Inject
     public DiscordSync(@ConfigDir(sharedRoot = false) Path path) {
@@ -62,6 +63,15 @@ public class DiscordSync {
         spec = MarkupSpec.create();
         prompt = spec.template("[blue](Use [gold,underline,/discord auth](/discord auth) to link your Discord account)");
         auth = spec.template("[blue,underline,{url}](Click me to authenticate your account)");
+    }
+
+    @Permission
+    @Command("discord bot")
+    public void add(@Src Player player) {
+        Config config = StorageHelper.load(configDir.resolve("config.json"), Config.class, Config::new);
+        String address = String.format(DiscordAuthService.ADD_BOT, config.discord.botClientId);
+        Text message = add.with("url", address).render();
+        player.sendMessage(message);
     }
 
     @Permission
@@ -97,6 +107,7 @@ public class DiscordSync {
         Config config = StorageHelper.load(configDir.resolve("config.json"), Config.class, Config::new);
         prompt = spec.template(config.prompts.prompt);
         auth = spec.template(config.prompts.auth);
+        add = spec.template(config.prompts.add);
 
         Channels channels = StorageHelper.load(configDir.resolve("channels.json"), Channels.class, Channels::new);
         DiscordChannel.Format format = new DiscordChannel.Format(channels.main.discord);

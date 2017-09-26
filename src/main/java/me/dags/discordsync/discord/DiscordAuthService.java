@@ -29,6 +29,7 @@ import java.util.function.Consumer;
  */
 public class DiscordAuthService {
 
+    public static final String ADD_BOT = "https://discordapp.com/api/oauth2/authorize?client_id=%s&scope=bot";
     private static final String AUTHORIZE = "https://discordapp.com/api/oauth2/authorize";
     private static final String TOKEN = "https://discordapp.com/api/oauth2/token";
     private static final String GET_USER = "https://discordapp.com/api/users/@me";
