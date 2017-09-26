@@ -41,7 +41,7 @@ public class DiscordMessageService implements MessageCreateListener {
                 String source = nick != null ? nick : message.getAuthor().getName();
                 String content = message.getContent();
                 Text text = channel.getTemplate().with("name", source).with("message", content).render();
-                PluginHelper.getInstance().sync(() -> Sponge.getServer().getBroadcastChannel().send(text));
+                PluginHelper.sync(() -> Sponge.getServer().getBroadcastChannel().send(text));
             }
         }
     }

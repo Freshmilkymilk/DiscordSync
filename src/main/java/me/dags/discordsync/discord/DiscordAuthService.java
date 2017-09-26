@@ -77,10 +77,10 @@ public class DiscordAuthService {
     }
 
     public void startSyncRolesTask(ImmutableList<String> roles) {
-        PluginHelper.getInstance().getAsync().scheduleAtFixedRate(() -> syncPatrons(roles), 5, 30, TimeUnit.SECONDS);
+        PluginHelper.getAsync().scheduleAtFixedRate(() -> syncRoles(roles), 5, 30, TimeUnit.SECONDS);
     }
 
-    private void syncPatrons(List<String> roles) {
+    private void syncRoles(List<String> roles) {
         Optional<DiscordClientService> clientService = Sponge.getServiceManager().provide(DiscordClientService.class);
         if (clientService.isPresent()) {
             DiscordClientService client = clientService.get();
@@ -88,7 +88,7 @@ public class DiscordAuthService {
             getStorage().iterate((uuid, snowflake) -> {
                 Subject subject = service.getUserSubjects().get(uuid.toString());
                 Map<String, Boolean> values = new HashMap<>(roles.size());
-                Map<String, Boolean> permissions = subject.getTransientSubjectData().getPermissions(SubjectData.GLOBAL_CONTEXT);
+                Map<String, Boolean> permissions = DiscordSync.getSubjectData(subject).getPermissions(SubjectData.GLOBAL_CONTEXT);
                 for (String role : roles) {
                     String node = String.format(DiscordSync.ROLE_PERMISSION, role);
                     values.put(role, permissions.getOrDefault(node, false));
@@ -178,11 +178,11 @@ public class DiscordAuthService {
 
             String id = user.getBody().getObject().getString("id");
             AuthUserEvent event = AuthUserEvent.pass(uuid, id);
-            PluginHelper.getInstance().postEvent(event);
+            PluginHelper.postEvent(event);
             return "<h1>Great success!</h1>";
         } catch (Throwable t) {
             AuthUserEvent event = AuthUserEvent.fail(uuid, t.getLocalizedMessage());
-            PluginHelper.getInstance().postEvent(event);
+            PluginHelper.postEvent(event);
             return t.getLocalizedMessage();
         }
     }

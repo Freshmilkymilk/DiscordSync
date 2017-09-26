@@ -10,6 +10,7 @@ import de.btobastian.javacord.listener.server.ServerMemberBanListener;
 import de.btobastian.javacord.listener.server.ServerMemberUnbanListener;
 import de.btobastian.javacord.listener.user.UserRoleAddListener;
 import de.btobastian.javacord.listener.user.UserRoleRemoveListener;
+import me.dags.discordsync.DiscordSync;
 import me.dags.discordsync.PluginHelper;
 import me.dags.discordsync.event.ChangeRoleEvent;
 import org.slf4j.Logger;
@@ -81,7 +82,7 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
     public void onUserRoleAdd(DiscordAPI discordAPI, User user, Role role) {
         if (role.getServer().getId().equals(guild)) {
             ChangeRoleEvent event = ChangeRoleEvent.add(role.getName().toLowerCase(), user.getId());
-            PluginHelper.getInstance().postEvent(event);
+            PluginHelper.postEvent(event);
         }
     }
 
@@ -89,7 +90,7 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
     public void onUserRoleRemove(DiscordAPI discordAPI, User user, Role role) {
         if (role.getServer().getId().equals(guild)) {
             ChangeRoleEvent event = ChangeRoleEvent.remove(role.getName().toLowerCase(), user.getId());
-            PluginHelper.getInstance().postEvent(event);
+            PluginHelper.postEvent(event);
         }
     }
 
@@ -109,7 +110,7 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
 
     public void getRolesAsync(String snowflake, Consumer<Set<String>> callback) {
         Supplier<Set<String>> async = () -> getRolesBlocking(snowflake);
-        PluginHelper.getInstance().async(async, callback, Collections.emptySet());
+        PluginHelper.async(async, callback, Collections.emptySet());
     }
 
     public void syncRoles(String snowflake, Map<String, Boolean> values) {
@@ -125,7 +126,6 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
 
         List<Role> roles = new LinkedList<>();
         for (Role role : user.getRoles(server)) {
-            // filter out all patron roles
             if (values.containsKey(role.getName().toLowerCase())) {
                 continue;
             }
@@ -134,7 +134,8 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
 
         for (Role role : server.getRoles()) {
             // only add owned roles
-            if (values.getOrDefault(role.getName().toLowerCase(), false)) {
+            String node = String.format(DiscordSync.ROLE_PERMISSION, role.getName().toLowerCase());
+            if (values.getOrDefault(node, false)) {
                 roles.add(role);
             }
         }

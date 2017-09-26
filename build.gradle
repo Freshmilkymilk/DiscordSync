@@ -37,8 +37,8 @@ shadowJar {
     relocate 'me.dags.commandbus.', 'me.dags.discordsync.libs.commandbus.'
     relocate 'me.dags.textmu.', 'me.dags.discordsync.libs.textmu.'
     relocate 'spark.', 'me.dags.discordsync.libs.spark.'
+    relocate 'org.apache.', 'me.dags.discordsync.libs.apache.'
     archiveName = "${baseName}-${version}-${spongeVersion}.jar"
-    classifier = null
 }
 
 jar.dependsOn shadowJar

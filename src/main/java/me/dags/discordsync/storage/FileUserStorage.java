@@ -10,7 +10,7 @@ import java.util.function.BiConsumer;
 /**
  * @author dags <dags@dags.me>
  */
-public class FileUserStorage extends Config implements UserStorage {
+public class FileUserStorage extends JsonConfig implements UserStorage {
 
     public FileUserStorage(Path path) {
         super(path);

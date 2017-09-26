@@ -26,7 +26,7 @@ public class AuthUserEvent extends AbstractEvent implements UserEvent {
 
     @Override
     public Cause getCause() {
-        return PluginHelper.getInstance().getDefaultCause();
+        return PluginHelper.getDefaultCause();
     }
 
     public String getSnowflake() {

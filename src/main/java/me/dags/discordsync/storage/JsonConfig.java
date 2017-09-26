@@ -15,14 +15,14 @@ import java.util.function.Function;
 /**
  * @author dags <dags@dags.me>
  */
-public class Config {
+public class JsonConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
     private final Path path;
     private final JsonObject root;
 
-    public Config(Path path) {
+    public JsonConfig(Path path) {
         this.path = path;
         this.root = load(path);
     }
@@ -31,15 +31,15 @@ public class Config {
         return root;
     }
 
-    public Config set(String value, String... path) {
+    public JsonConfig set(String value, String... path) {
         return set(new JsonPrimitive(value), path);
     }
 
-    public Config set(Number value, String... path) {
+    public JsonConfig set(Number value, String... path) {
         return set(new JsonPrimitive(value), path);
     }
 
-    public Config set(Boolean value, String... path) {
+    public JsonConfig set(Boolean value, String... path) {
         return set(new JsonPrimitive(value), path);
     }
 
@@ -77,12 +77,12 @@ public class Config {
         return list;
     }
 
-    public Config save() {
+    public JsonConfig save() {
         save(root, path);
         return this;
     }
 
-    private Config set(JsonElement element, String... path) {
+    private JsonConfig set(JsonElement element, String... path) {
         JsonObject parent = mustParent(path);
         String key = getLastKey(path);
         parent.add(key, element);

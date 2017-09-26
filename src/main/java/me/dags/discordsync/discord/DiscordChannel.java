@@ -1,5 +1,6 @@
 package me.dags.discordsync.discord;
 
+import me.dags.discordsync.Channels;
 import me.dags.textmu.MarkupSpec;
 import me.dags.textmu.MarkupTemplate;
 
@@ -42,6 +43,10 @@ public class DiscordChannel {
         private final String start;
         private final String stop;
         private final String avatar;
+
+        public Format(Channels.Discord discord) {
+            this(discord.message, discord.connected, discord.disconnected, discord.starting, discord.stopping, discord.avatar);
+        }
 
         public Format(String message, String connect, String disconnect, String start, String stop, String avatar) {
             this.message = message;

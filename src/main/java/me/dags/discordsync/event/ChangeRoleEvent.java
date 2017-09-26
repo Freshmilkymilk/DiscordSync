@@ -28,7 +28,7 @@ public class ChangeRoleEvent extends AbstractEvent implements Event {
 
     @Override
     public Cause getCause() {
-        return PluginHelper.getInstance().getDefaultCause();
+        return PluginHelper.getDefaultCause();
     }
 
     public static ChangeRoleEvent.Add add(String role, String snowflake) {

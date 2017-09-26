@@ -27,34 +27,34 @@ public class PluginHelper {
         cause = Cause.source(plugin).build();
     }
 
-    public Cause getDefaultCause() {
-        return cause;
+    public static Cause getDefaultCause() {
+        return getInstance().cause;
     }
 
-    public SpongeExecutorService getSync() {
-        return sync;
+    public static SpongeExecutorService getSync() {
+        return getInstance().sync;
     }
 
-    public SpongeExecutorService getAsync() {
-        return async;
+    public static SpongeExecutorService getAsync() {
+        return getInstance().async;
     }
 
-    public void sync(Runnable runnable) {
-        sync.submit(runnable);
+    public static void sync(Runnable runnable) {
+        getInstance().sync.submit(runnable);
     }
 
-    public void async(Runnable runnable) {
-        async.submit(runnable);
+    public static void async(Runnable runnable) {
+        getInstance().async.submit(runnable);
     }
 
-    public void async(Runnable async, Runnable sync) {
+    public static void async(Runnable async, Runnable sync) {
         async(() -> {
             async.run();
             sync(sync);
         });
     }
 
-    public <T> void async(Supplier<T> async, Consumer<T> sync, T defaultValue) {
+    public static <T> void async(Supplier<T> async, Consumer<T> sync, T defaultValue) {
         async(() -> {
             T t = async.get();
             if (t == null) {
@@ -65,11 +65,11 @@ public class PluginHelper {
         });
     }
 
-    public void postEvent(Event event) {
+    public static void postEvent(Event event) {
         sync(() -> Sponge.getEventManager().post(event));
     }
 
-    public static PluginHelper getInstance() {
+    private static PluginHelper getInstance() {
         return instance;
     }
 }

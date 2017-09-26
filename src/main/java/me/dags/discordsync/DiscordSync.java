@@ -1,7 +1,6 @@
 package me.dags.discordsync;
 
 import com.google.common.collect.ImmutableList;
-import com.google.gson.JsonElement;
 import me.dags.commandbus.CommandBus;
 import me.dags.commandbus.annotation.Command;
 import me.dags.commandbus.annotation.Permission;
@@ -13,8 +12,8 @@ import me.dags.discordsync.discord.DiscordClientService;
 import me.dags.discordsync.discord.DiscordMessageService;
 import me.dags.discordsync.event.AuthUserEvent;
 import me.dags.discordsync.event.ChangeRoleEvent;
-import me.dags.discordsync.storage.Config;
 import me.dags.discordsync.storage.FileUserStorage;
+import me.dags.discordsync.storage.StorageHelper;
 import me.dags.textmu.MarkupSpec;
 import me.dags.textmu.MarkupTemplate;
 import org.slf4j.Logger;
@@ -95,53 +94,27 @@ public class DiscordSync {
         Sponge.getServiceManager().provide(DiscordAuthService.class).ifPresent(DiscordAuthService::stop);
         Sponge.getServiceManager().provide(DiscordClientService.class).ifPresent(DiscordClientService::disconnect);
 
-        Config config = new Config(configDir.resolve("config.json"));
-        String name = config.get("Server", "server", "name");
-        String avatar = config.get("", "server", "avatar");
-        String guildId = config.get("", "discord", "guild");
-        String token = config.get("", "discord", "token");
-        String clientId = config.get("", "discord", "clientId");
-        String clientSecret = config.get("", "discord", "clientSecret");
-        String url = config.get("", "auth", "url");
-        int port = config.get(8080, "auth", "port");
+        Config config = StorageHelper.load(configDir.resolve("config.json"), Config.class, Config::new);
+        prompt = spec.template(config.prompts.prompt);
+        auth = spec.template(config.prompts.auth);
 
-        String promptTemplate = config.get(prompt.toString(), "prompts", "prompt");
-        String authTemplate = config.get(auth.toString(), "prompts", "auth");
-        prompt = spec.template(promptTemplate);
-        auth = spec.template(authTemplate);
-
-        ImmutableList.Builder<String> patrons = ImmutableList.builder();
-        config.getList(JsonElement::getAsString, "patrons").forEach(s -> patrons.add(s.toLowerCase()));
-
-        Config channels = new Config(configDir.resolve("channels.json"));
-        String message = channels.get("{1}", "format", "message");
-        String connect = channels.get("```{0} joined the server```", "format", "connect");
-        String disconnect = channels.get("```{0} left the server```", "format", "disconnect");
-        String start = channels.get("```Server is starting...```", "format", "start");
-        String stop = channels.get("```Server is stopping...```", "format", "stop");
-        String userAvatar = channels.get("", "format", "avatar");
-        DiscordChannel.Format format = new DiscordChannel.Format(message, connect, disconnect, start, stop, userAvatar);
-
-        String channelId = channels.get("", "public", "channelId");
-        String channelTemplate = channels.get("[blue](`[Discord]` {name}): {message}", "public", "template");
-        String channelWebhook = channels.get("https://minotar.net/helm/{0}", "public", "webhook");
-        DiscordChannel channel = new DiscordChannel(channelId, channelTemplate, channelWebhook);
+        Channels channels = StorageHelper.load(configDir.resolve("channels.json"), Channels.class, Channels::new);
+        DiscordChannel.Format format = new DiscordChannel.Format(channels.main.discord);
+        DiscordChannel channel = new DiscordChannel(channels.main.channelId, channels.main.minecraft.message, channels.main.webhook);
 
         FileUserStorage users = new FileUserStorage(configDir.resolve("users.json"));
-        DiscordAuthService.create(users, clientId, clientSecret, url, port, authService -> {
+        DiscordAuthService.create(users, config.discord.botClientId, config.discord.botClientSecret, config.auth.url, config.auth.port, authService -> {
             Sponge.getServiceManager().setProvider(this, DiscordAuthService.class, authService);
-            authService.startSyncRolesTask(patrons.build());
+            authService.startSyncRolesTask(ImmutableList.copyOf(config.server.roles));
         });
 
-        DiscordMessageService messageService = DiscordMessageService.create(name, avatar, format, channel);
+        DiscordMessageService messageService = DiscordMessageService.create(config.server.name, config.server.avatar, format, channel);
         Sponge.getServiceManager().setProvider(this, DiscordMessageService.class, messageService);
 
-        DiscordClientService.create(guildId, token, messageService, clientService -> {
+        DiscordClientService.create(config.discord.guildId, config.discord.botUserToken, messageService, clientService -> {
             Sponge.getServiceManager().setProvider(this, DiscordClientService.class, clientService);
         });
 
-        channels.save();
-        config.save();
         users.save();
     }
 
@@ -288,7 +261,7 @@ public class DiscordSync {
                 || c.getClass().getSimpleName().equals("BoopableChannel");
     }
 
-    private SubjectData getSubjectData(Subject subject) {
+    public static SubjectData getSubjectData(Subject subject) {
         return subject.getTransientSubjectData();
     }
 }
