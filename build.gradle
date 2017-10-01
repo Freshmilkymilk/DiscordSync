@@ -25,7 +25,7 @@ repositories {
 
 dependencies {
     compileOnly "org.spongepowered:spongeapi:${spongeVersion}"
-    compile 'com.sparkjava:spark-core:2.6.0'
+    compile 'org.nanohttpd:nanohttpd:2.3.1'
     compile 'de.btobastian.javacord:javacord:2.0.17'
     compile 'com.github.dags-:CommandBus:2.0.0-TEST-6'
     compile ('com.github.dags-:TextMU:0.1') {
@@ -36,7 +36,7 @@ dependencies {
 shadowJar {
     relocate 'me.dags.commandbus.', 'me.dags.discordsync.libs.commandbus.'
     relocate 'me.dags.textmu.', 'me.dags.discordsync.libs.textmu.'
-    relocate 'spark.', 'me.dags.discordsync.libs.spark.'
+    relocate 'fi.iki.elonen.', 'me.dags.discordsync.libs.nanohttpd.'
     relocate 'org.apache.', 'me.dags.discordsync.libs.apache.'
     archiveName = "${baseName}-${version}-${spongeVersion}.jar"
 }

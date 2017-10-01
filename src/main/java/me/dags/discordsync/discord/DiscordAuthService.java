@@ -6,9 +6,13 @@ import com.google.common.collect.ImmutableList;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
+import fi.iki.elonen.NanoHTTPD;
+import me.dags.discordsync.Config;
 import me.dags.discordsync.DiscordSync;
 import me.dags.discordsync.PluginHelper;
 import me.dags.discordsync.event.AuthUserEvent;
+import me.dags.discordsync.net.HttpServer;
+import me.dags.discordsync.net.Server;
 import me.dags.discordsync.storage.UserStorage;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.User;
@@ -16,10 +20,8 @@ import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.service.permission.Subject;
 import org.spongepowered.api.service.permission.SubjectData;
 import org.spongepowered.api.service.user.UserStorageService;
-import spark.Request;
-import spark.Response;
-import spark.Service;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -40,18 +42,20 @@ public class DiscordAuthService {
     private final UserStorage storage;
     private final String clientSecret;
     private final String clientId;
-    private final String url;
-    private final int port;
+    private final String redirect;
 
-    private final Service service = Service.ignite();
+
+    private final HttpServer server;
     private final boolean running;
 
     private DiscordAuthService(UserStorage storage, String clientId, String clientSecret, String url, int port) {
-        this.url = url;
-        this.port = port;
+        this.redirect = url;
         this.storage = storage;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
+        this.server = new HttpServer("127.0.0.1", port)
+                .route(LOGIN_ROUTE, this::handleLogin)
+                .route(AUTH_ROUTE, this::handleAuth);
         this.running = start();
     }
 
@@ -77,8 +81,34 @@ public class DiscordAuthService {
         return Unirest.get(loginRoute()).queryString("id", state).getUrl();
     }
 
+    public void stop() {
+        server.stop();
+    }
+
     public void startSyncRolesTask(ImmutableList<String> roles) {
         PluginHelper.getAsync().scheduleAtFixedRate(() -> syncRoles(roles), 5, 30, TimeUnit.SECONDS);
+    }
+
+    private boolean start() {
+        if (clientId.isEmpty() || clientSecret.isEmpty() || redirect.isEmpty()) {
+            return false;
+        }
+
+        try {
+            server.start();
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private String loginRoute() {
+        return redirect + LOGIN_ROUTE;
+    }
+
+    private String authRoute() {
+        return redirect + AUTH_ROUTE;
     }
 
     private void syncRoles(List<String> roles) {
@@ -99,36 +129,13 @@ public class DiscordAuthService {
         }
     }
 
-    public void stop() {
-        service.stop();
-    }
-
-    private boolean start() {
-        if (clientId.isEmpty() || clientSecret.isEmpty() || url.isEmpty()) {
-            return false;
+    private NanoHTTPD.Response handleLogin(Server server, NanoHTTPD.IHTTPSession request) {
+        String state = server.getParam(request, "id");
+        if (state == null) {
+            return server.text("Invalid id provided");
         }
-        try {
-            service.port(port);
-            service.get(LOGIN_ROUTE, this::handleLogin);
-            service.get(AUTH_ROUTE, this::handleAuth);
-            return true;
-        } catch (Throwable t) {
-            return false;
-        }
-    }
 
-    private String loginRoute() {
-        return url + LOGIN_ROUTE;
-    }
-
-    private String authRoute() {
-        return url + AUTH_ROUTE;
-    }
-
-    private Object handleLogin(Request request, Response response) {
-        String state = request.queryParams("id");
-
-        String url = Unirest.get(AUTHORIZE)
+        String redirect = Unirest.get(AUTHORIZE)
                 .queryString("response_type", "code")
                 .queryString("client_id", clientId)
                 .queryString("scope", "identify")
@@ -136,28 +143,26 @@ public class DiscordAuthService {
                 .queryString("redirect_uri", authRoute())
                 .getUrl();
 
-        response.redirect(url);
-        
-        return "Redirecting...";
+        return server.redirect(redirect);
     }
 
-    private Object handleAuth(Request request, Response response)  {
-        String state = request.queryParams("state");
-        String code = request.queryParams("code");
+    private NanoHTTPD.Response handleAuth(Server server, NanoHTTPD.IHTTPSession request) {
+        String state = server.getParam(request, "state");
+        String code = server.getParam(request, "code");
 
         if (state == null) {
-            return "Invalid session state!";
+            return server.text("Invalid session state!");
         }
 
         if (code == null) {
-            return "Could not obtain session code!";
+            return server.text("Could not obtain session code!");
         }
 
         UUID uuid = sessionCache.getIfPresent(state);
         sessionCache.invalidate(state);
 
         if (uuid == null) {
-            return "Session timed out!";
+            return server.text("Session timed out!");
         }
 
         try {
@@ -174,22 +179,22 @@ public class DiscordAuthService {
 
             HttpResponse<JsonNode> user = Unirest.get(GET_USER)
                     .header("Authorization", "Bearer " + token)
-                    .header("User-Agent", "login (n/a, 1.0)")
+                    .header("User-Agent", "handleLogin (n/a, 1.0)")
                     .asJson();
 
             String id = user.getBody().getObject().getString("id");
             AuthUserEvent event = AuthUserEvent.pass(uuid, id);
             PluginHelper.postEvent(event);
-            return "<h1>Great success!</h1>";
+            return server.html("<h1>Great success!</h1>");
         } catch (Throwable t) {
             AuthUserEvent event = AuthUserEvent.fail(uuid, t.getLocalizedMessage());
             PluginHelper.postEvent(event);
-            return t.getLocalizedMessage();
+            return server.text(t.getLocalizedMessage());
         }
     }
 
-    public static void create(UserStorage storage, String clientId, String clientSecret, String url, int port, Consumer<DiscordAuthService> callback) {
-        DiscordAuthService service = new DiscordAuthService(storage, clientId, clientSecret, url, port);
+    public static void create(UserStorage storage, Config config, Consumer<DiscordAuthService> callback) {
+        DiscordAuthService service = new DiscordAuthService(storage, config.discord.botClientId, config.discord.botClientSecret, config.auth.url, config.auth.port);
         if (service.isRunning()) {
             callback.accept(service);
         }

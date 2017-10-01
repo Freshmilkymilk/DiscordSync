@@ -35,10 +35,13 @@ import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.service.permission.Subject;
 import org.spongepowered.api.service.permission.SubjectData;
 import org.spongepowered.api.text.Text;
+import org.spongepowered.api.text.action.TextActions;
 import org.spongepowered.api.text.channel.MessageChannel;
 import org.spongepowered.api.text.format.TextColors;
 
 import javax.inject.Inject;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Optional;
@@ -62,7 +65,7 @@ public class DiscordSync {
         configDir = path;
         spec = MarkupSpec.create();
         prompt = spec.template("[blue](Use [gold,underline,/discord auth](/discord auth) to link your Discord account)");
-        auth = spec.template("[blue,underline,{url}](Click me to authenticate your account)");
+        auth = spec.template("[blue]([gold,underline,{url}](Click me) to authenticate your account)");
     }
 
     @Permission
@@ -76,10 +79,11 @@ public class DiscordSync {
 
     @Permission
     @Command("discord auth")
-    public void auth(@Src Player player) {
+    public void auth(@Src Player player) throws MalformedURLException {
         Optional<DiscordAuthService> authService = Sponge.getServiceManager().provide(DiscordAuthService.class);
         if (authService.isPresent()) {
-            Text message = auth.with("url", authService.get().getSignUpURL(player.getUniqueId())).render();
+            String url = authService.get().getSignUpURL(player.getUniqueId());
+            Text message = auth.applier().render().toBuilder().onClick(TextActions.openUrl(new URL(url))).build();
             player.sendMessage(message);
         } else {
             Fmt.error("Service not available right now");
@@ -114,7 +118,7 @@ public class DiscordSync {
         DiscordChannel channel = new DiscordChannel(channels.main.channelId, channels.main.minecraft.message, channels.main.webhook);
 
         FileUserStorage users = new FileUserStorage(configDir.resolve("users.json"));
-        DiscordAuthService.create(users, config.discord.botClientId, config.discord.botClientSecret, config.auth.url, config.auth.port, authService -> {
+        DiscordAuthService.create(users, config, authService -> {
             Sponge.getServiceManager().setProvider(this, DiscordAuthService.class, authService);
             authService.startSyncRolesTask(ImmutableList.copyOf(config.server.roles));
         });
