@@ -15,6 +15,7 @@ public class Channels {
     }
 
     public static class Discord {
+        public String title = "{0} ({1})";
         public String message = "**{0}**: {1}";
         public String connected = "```{0} joined the server```";
         public String disconnected = "```{0} left the server```";

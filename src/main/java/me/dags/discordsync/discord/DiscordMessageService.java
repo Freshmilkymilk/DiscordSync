@@ -19,14 +19,14 @@ public class DiscordMessageService implements MessageCreateListener {
 
     private final List<DiscordChannel> channels;
     private final DiscordChannel.Format format;
-    private final String channelName;
-    private final String channelAvatar;
+    private final String serverName;
+    private final String serverAvatar;
 
-    private DiscordMessageService(String channelName, String channelAvatar, DiscordChannel.Format format, List<DiscordChannel> channels) {
+    private DiscordMessageService(String serverName, String serverAvatar, DiscordChannel.Format format, List<DiscordChannel> channels) {
         this.channels = channels;
         this.format = format;
-        this.channelName = channelName;
-        this.channelAvatar = channelAvatar;
+        this.serverName = serverName;
+        this.serverAvatar = serverAvatar;
     }
 
     @Override
@@ -52,7 +52,7 @@ public class DiscordMessageService implements MessageCreateListener {
 
     public void sendStopping() {
         for (DiscordChannel channel : channels) {
-            sendSync(channel, channelName, channelAvatar, format.getStop());
+            sendSync(channel, serverName, serverAvatar, format.getStop());
         }
     }
 
@@ -65,9 +65,10 @@ public class DiscordMessageService implements MessageCreateListener {
     }
 
     public void sendMessage(String name, String message) {
+        String title = format.getTitle(name, serverName);
         String content = format.getMessage(name, message);
         String avatar = format.getAvatar(name);
-        sendMessage(name, avatar, content);
+        sendMessage(title, avatar, content);
     }
 
     private void sendMessage(String name, String avatar, String content) {
@@ -78,7 +79,7 @@ public class DiscordMessageService implements MessageCreateListener {
 
     private void sendStatus(String message) {
         for (DiscordChannel channel : channels) {
-            sendAsync(channel, channelName, channelAvatar, message);
+            sendAsync(channel, serverName, serverAvatar, message);
         }
     }
 

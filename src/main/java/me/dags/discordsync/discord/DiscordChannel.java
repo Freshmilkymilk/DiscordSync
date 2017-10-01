@@ -37,6 +37,7 @@ public class DiscordChannel {
 
     public static class Format {
 
+        private final String title;
         private final String message;
         private final String connect;
         private final String disconnect;
@@ -45,16 +46,21 @@ public class DiscordChannel {
         private final String avatar;
 
         public Format(Channels.Discord discord) {
-            this(discord.message, discord.connected, discord.disconnected, discord.starting, discord.stopping, discord.avatar);
+            this(discord.title, discord.message, discord.connected, discord.disconnected, discord.starting, discord.stopping, discord.avatar);
         }
 
-        public Format(String message, String connect, String disconnect, String start, String stop, String avatar) {
+        public Format(String title, String message, String connect, String disconnect, String start, String stop, String avatar) {
+            this.title = title;
             this.message = message;
             this.connect = connect;
             this.disconnect = disconnect;
             this.start = start;
             this.stop = stop;
             this.avatar = avatar;
+        }
+
+        public String getTitle(Object... args) {
+            return MessageFormat.format(title, args);
         }
 
         public String getMessage(Object... args) {
