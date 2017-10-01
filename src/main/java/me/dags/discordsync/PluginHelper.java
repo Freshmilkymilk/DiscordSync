@@ -41,8 +41,12 @@ public class PluginHelper {
     }
 
     private synchronized void shutdownServices() {
-        async.shutdown();
-        sync.shutdown();
+        if (async != null) {
+            async.shutdown();
+        }
+        if (sync != null) {
+            sync.shutdown();
+        }
     }
 
     public static Cause getDefaultCause() {

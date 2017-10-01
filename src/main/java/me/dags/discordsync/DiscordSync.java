@@ -140,7 +140,7 @@ public class DiscordSync {
         Sponge.getServiceManager().provide(DiscordMessageService.class).ifPresent(DiscordMessageService::sendStopping);
     }
 
-    @Listener
+    // @Listener
     public void join(ClientConnectionEvent.Join event, @Root Player player) {
         Sponge.getServiceManager().provide(DiscordMessageService.class)
                 .ifPresent(discordMessageService -> discordMessageService.sendConnect(player.getName()));
