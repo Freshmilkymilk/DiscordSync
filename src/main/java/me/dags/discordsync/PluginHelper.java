@@ -16,35 +16,57 @@ public class PluginHelper {
 
     private static final PluginHelper instance = new PluginHelper();
 
-    private final SpongeExecutorService sync;
-    private final SpongeExecutorService async;
     private final Cause cause;
+    private final Object plugin;
+    private SpongeExecutorService sync;
+    private SpongeExecutorService async;
 
     private PluginHelper() {
-        Object plugin = Sponge.getPluginManager().getPlugin(DiscordSync.ID).flatMap(PluginContainer::getInstance).orElseThrow(IllegalStateException::new);
-        sync = Sponge.getScheduler().createSyncExecutor(plugin);
-        async = Sponge.getScheduler().createAsyncExecutor(plugin);
+        plugin = Sponge.getPluginManager().getPlugin(DiscordSync.ID).flatMap(PluginContainer::getInstance).orElseThrow(IllegalStateException::new);
         cause = Cause.source(plugin).build();
+    }
+
+    private synchronized SpongeExecutorService getSyncService() {
+        if (sync == null || sync.isShutdown()) {
+            sync = Sponge.getScheduler().createSyncExecutor(plugin);
+        }
+        return sync;
+    }
+
+    private synchronized SpongeExecutorService getAsyncService() {
+        if (async == null || async.isShutdown()) {
+            async = Sponge.getScheduler().createAsyncExecutor(plugin);
+        }
+        return async;
+    }
+
+    private synchronized void shutdownServices() {
+        async.shutdown();
+        sync.shutdown();
     }
 
     public static Cause getDefaultCause() {
         return getInstance().cause;
     }
 
+    public static void shutdown() {
+        getInstance().shutdownServices();
+    }
+
     public static SpongeExecutorService getSync() {
-        return getInstance().sync;
+        return getInstance().getSyncService();
     }
 
     public static SpongeExecutorService getAsync() {
-        return getInstance().async;
+        return getInstance().getAsyncService();
     }
 
     public static void sync(Runnable runnable) {
-        getInstance().sync.submit(runnable);
+        getSync().submit(runnable);
     }
 
     public static void async(Runnable runnable) {
-        getInstance().async.submit(runnable);
+        getAsync().submit(runnable);
     }
 
     public static void async(Runnable async, Runnable sync) {

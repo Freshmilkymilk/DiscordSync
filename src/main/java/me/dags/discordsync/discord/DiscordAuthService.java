@@ -44,7 +44,6 @@ public class DiscordAuthService {
     private final String clientId;
     private final String redirect;
 
-
     private final HttpServer server;
     private final boolean running;
 

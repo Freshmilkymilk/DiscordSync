@@ -105,6 +105,8 @@ public class DiscordSync {
 
     @Listener
     public void refresh(GameReloadEvent event) {
+        PluginHelper.shutdown();
+
         Sponge.getServiceManager().provide(DiscordAuthService.class).ifPresent(DiscordAuthService::stop);
         Sponge.getServiceManager().provide(DiscordClientService.class).ifPresent(DiscordClientService::disconnect);
 
