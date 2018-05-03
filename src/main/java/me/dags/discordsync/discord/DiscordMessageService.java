@@ -6,11 +6,10 @@ import com.mashape.unirest.http.exceptions.UnirestException;
 import de.btobastian.javacord.DiscordAPI;
 import de.btobastian.javacord.entities.message.Message;
 import de.btobastian.javacord.listener.message.MessageCreateListener;
+import java.util.List;
 import me.dags.discordsync.PluginHelper;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.text.Text;
-
-import java.util.List;
 
 /**
  * @author dags <dags@dags.me>
@@ -33,6 +32,15 @@ public class DiscordMessageService implements MessageCreateListener {
     public void onMessageCreate(DiscordAPI discord, Message message) {
         if (message.getAuthor().isBot()) {
             return;
+        }
+
+        if (message.getContent().startsWith("!")) {
+            for (DiscordChannel channel : channels) {
+                if (channel.getId().equals(message.getChannelReceiver().getId())) {
+                    DiscordCommands.getInstance().process(message);
+                    return;
+                }
+            }
         }
 
         for (DiscordChannel channel : channels) {

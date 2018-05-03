@@ -1,10 +1,9 @@
 package me.dags.discordsync.discord;
 
+import java.text.MessageFormat;
 import me.dags.discordsync.Channels;
 import me.dags.textmu.MarkupSpec;
 import me.dags.textmu.MarkupTemplate;
-
-import java.text.MessageFormat;
 
 /**
  * @author dags <dags@dags.me>

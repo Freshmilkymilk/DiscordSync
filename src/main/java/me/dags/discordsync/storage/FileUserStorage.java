@@ -1,7 +1,6 @@
 package me.dags.discordsync.storage;
 
 import com.google.gson.JsonElement;
-
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.UUID;

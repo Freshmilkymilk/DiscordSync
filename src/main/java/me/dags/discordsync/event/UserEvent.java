@@ -1,13 +1,12 @@
 package me.dags.discordsync.event;
 
+import java.util.Optional;
+import java.util.UUID;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.entity.living.player.User;
 import org.spongepowered.api.event.Event;
 import org.spongepowered.api.service.user.UserStorageService;
-
-import java.util.Optional;
-import java.util.UUID;
 
 /**
  * @author dags <dags@dags.me>

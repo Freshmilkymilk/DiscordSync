@@ -10,19 +10,23 @@ import de.btobastian.javacord.listener.server.ServerMemberBanListener;
 import de.btobastian.javacord.listener.server.ServerMemberUnbanListener;
 import de.btobastian.javacord.listener.user.UserRoleAddListener;
 import de.btobastian.javacord.listener.user.UserRoleRemoveListener;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import me.dags.discordsync.DiscordSync;
 import me.dags.discordsync.PluginHelper;
 import me.dags.discordsync.event.ChangeRoleEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.api.Sponge;
-
-import javax.annotation.Nullable;
-import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  * @author dags <dags@dags.me>

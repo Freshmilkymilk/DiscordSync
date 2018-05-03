@@ -10,7 +10,6 @@ public class Config {
 
     public Server server = new Server();
     public Discord discord = new Discord();
-    public Auth auth = new Auth();
     public Messages prompts = new Messages();
 
     public static class Server {
@@ -23,12 +22,6 @@ public class Config {
         public String guildId = "";
         public String botUserToken = "";
         public String botClientId = "";
-        public String botClientSecret = "";
-    }
-
-    public static class Auth {
-        public String url = "http://localhost:8080";
-        public int port = 8080;
     }
 
     public static class Messages {

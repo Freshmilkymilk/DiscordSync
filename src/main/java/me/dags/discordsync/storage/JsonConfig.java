@@ -1,8 +1,12 @@
 package me.dags.discordsync.storage;
 
-import com.google.gson.*;
-
-import javax.annotation.Nonnull;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -11,6 +15,7 @@ import java.nio.file.Path;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 
 /**
  * @author dags <dags@dags.me>

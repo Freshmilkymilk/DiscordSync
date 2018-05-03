@@ -1,13 +1,14 @@
 package me.dags.discordsync;
 
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.event.Event;
 import org.spongepowered.api.event.cause.Cause;
+import org.spongepowered.api.event.cause.EventContext;
+import org.spongepowered.api.event.cause.EventContextKeys;
 import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.scheduler.SpongeExecutorService;
-
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  * @author dags <dags@dags.me>
@@ -22,8 +23,9 @@ public class PluginHelper {
     private SpongeExecutorService async;
 
     private PluginHelper() {
-        plugin = Sponge.getPluginManager().getPlugin(DiscordSync.ID).flatMap(PluginContainer::getInstance).orElseThrow(IllegalStateException::new);
-        cause = Cause.source(plugin).build();
+        PluginContainer container = Sponge.getPluginManager().getPlugin(DiscordSync.ID).orElseThrow(IllegalStateException::new);
+        plugin = container.getInstance().orElseThrow(IllegalStateException::new);
+        cause = Cause.of(EventContext.builder().add(EventContextKeys.PLUGIN, container).build(), this);
     }
 
     private synchronized SpongeExecutorService getSyncService() {

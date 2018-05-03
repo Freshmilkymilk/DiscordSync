@@ -1,10 +1,9 @@
 package me.dags.discordsync.event;
 
+import java.util.UUID;
 import me.dags.discordsync.PluginHelper;
 import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.event.impl.AbstractEvent;
-
-import java.util.UUID;
 
 /**
  * @author dags <dags@dags.me>
