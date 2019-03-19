@@ -1,43 +1,46 @@
 plugins {
-    id 'com.github.johnrengelman.shadow' version '1.2.4'
-    id 'org.spongepowered.plugin' version '0.8.1'
+    id "com.github.johnrengelman.shadow" version "4.0.2"
+    id "org.spongepowered.plugin" version "0.8.1"
 }
 
-group = 'me.dags'
-version = '2.0-SNAPSHOT'
-def spongeVersion = '7.1.0-SNAPSHOT'
+group = "me.dags"
+version = "3.0-SNAPSHOT"
+def spongeVersion = "7.1.0-SNAPSHOT"
 
 sponge {
-    plugin.id = 'discordsync'
+    plugin.id = "discordsync"
     plugin.meta {
-        name = 'DiscordSync'
-        version = '2.0'
-        description = 'Sync your server with Discord'
+        name = "DiscordSync"
+        version = "2.0"
+        description = "Sync your server with Discord"
     }
+}
+
+configurations {
+    shade
+    compile.extendsFrom shade
 }
 
 repositories {
     mavenCentral()
     jcenter()
-    maven { url 'http://repo.bastian-oppermann.de' }
-    maven { url 'https://jitpack.io' }
+    maven { url "http://repo.bastian-oppermann.de" }
+    maven { url "https://jitpack.io" }
 }
 
 dependencies {
-    compileOnly "org.spongepowered:spongeapi:${spongeVersion}"
-    compile 'org.nanohttpd:nanohttpd:2.3.1'
-    compile 'de.btobastian.javacord:javacord:2.0.17'
-    compile 'com.github.dags-:CommandBus:2.0.1'
-    compile ('com.github.dags-:TextMU:0.2') {
+    compile "org.spongepowered:spongeapi:${spongeVersion}"
+    shade "org.javacord:javacord:3.0.3"
+    shade "com.github.dags-:CommandBus:2.0.6"
+    shade ("com.github.dags-:TextMU:0.2") {
         transitive = false
     }
 }
 
 shadowJar {
-    relocate 'me.dags.commandbus.', 'me.dags.discordsync.libs.commandbus.'
-    relocate 'me.dags.textmu.', 'me.dags.discordsync.libs.textmu.'
-    relocate 'fi.iki.elonen.', 'me.dags.discordsync.libs.nanohttpd.'
-    relocate 'org.apache.', 'me.dags.discordsync.libs.apache.'
+    configurations = [project.configurations.shade]
+    relocate "me.dags.commandbus.", "me.dags.discordsync.libs.commandbus."
+    relocate "me.dags.textmu.", "me.dags.discordsync.libs.textmu."
     archiveName = "${baseName}-${version}-${spongeVersion}.jar"
 }
 

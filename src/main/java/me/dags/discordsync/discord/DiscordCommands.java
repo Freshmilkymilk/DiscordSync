@@ -3,14 +3,14 @@ package me.dags.discordsync.discord;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.hash.Hashing;
-import de.btobastian.javacord.entities.User;
-import de.btobastian.javacord.entities.message.Message;
 import java.nio.charset.Charset;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import me.dags.discordsync.PluginHelper;
 import me.dags.discordsync.event.AuthUserEvent;
+import org.javacord.api.entity.message.Message;
+import org.javacord.api.entity.user.User;
 
 /**
  * @author dags <dags@dags.me>
@@ -27,9 +27,11 @@ public class DiscordCommands {
 
     public void process(Message message) {
         String[] args = message.getContent().split(" ");
-        if (auth(message.getAuthor(), args)) {
-            message.delete();
-        }
+        message.getUserAuthor().ifPresent(user -> {
+            if (auth(user, args)) {
+                message.delete();
+            }
+        });
     }
 
     public Optional<UUID> retrieveId(String token) {
@@ -56,7 +58,7 @@ public class DiscordCommands {
         }
 
         UUID uuid = id.get();
-        String snowflake = user.getId();
+        String snowflake = user.getIdAsString();
         PluginHelper.postEvent(AuthUserEvent.pass(uuid, snowflake));
         return true;
     }

@@ -1,7 +1,12 @@
 package me.dags.discordsync;
 
+import java.io.IOException;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.event.Event;
 import org.spongepowered.api.event.cause.Cause;
@@ -16,6 +21,7 @@ import org.spongepowered.api.scheduler.SpongeExecutorService;
 public class PluginHelper {
 
     private static final PluginHelper instance = new PluginHelper();
+    private static final OkHttpClient client = new OkHttpClient.Builder().build();
 
     private final Cause cause;
     private final Object plugin;
@@ -95,6 +101,16 @@ public class PluginHelper {
 
     public static void postEvent(Event event) {
         sync(() -> Sponge.getEventManager().post(event));
+    }
+
+    public static void post(String url, RequestBody body) {
+        Request request = new Request.Builder().url(url).method("POST", body).build();
+        client.newCall(request);
+    }
+
+    public static void postSync(String url, RequestBody body) throws IOException {
+        Request request = new Request.Builder().url(url).method("POST", body).build();
+        client.newCall(request).execute();
     }
 
     private static PluginHelper getInstance() {

@@ -1,52 +1,56 @@
 package me.dags.discordsync.discord;
 
-import com.google.common.util.concurrent.FutureCallback;
-import de.btobastian.javacord.DiscordAPI;
-import de.btobastian.javacord.Javacord;
-import de.btobastian.javacord.entities.Server;
-import de.btobastian.javacord.entities.User;
-import de.btobastian.javacord.entities.permissions.Role;
-import de.btobastian.javacord.listener.server.ServerMemberBanListener;
-import de.btobastian.javacord.listener.server.ServerMemberUnbanListener;
-import de.btobastian.javacord.listener.user.UserRoleAddListener;
-import de.btobastian.javacord.listener.user.UserRoleRemoveListener;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-import javax.annotation.Nullable;
+
 import me.dags.discordsync.DiscordSync;
 import me.dags.discordsync.PluginHelper;
 import me.dags.discordsync.event.ChangeRoleEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.javacord.api.DiscordApi;
+import org.javacord.api.DiscordApiBuilder;
+import org.javacord.api.entity.permission.Role;
+import org.javacord.api.entity.server.Server;
+import org.javacord.api.entity.user.User;
+import org.javacord.api.event.connection.LostConnectionEvent;
+import org.javacord.api.event.server.member.ServerMemberBanEvent;
+import org.javacord.api.event.server.member.ServerMemberUnbanEvent;
+import org.javacord.api.event.server.role.UserRoleAddEvent;
+import org.javacord.api.event.server.role.UserRoleRemoveEvent;
+import org.javacord.api.listener.connection.LostConnectionListener;
+import org.javacord.api.listener.server.member.ServerMemberBanListener;
+import org.javacord.api.listener.server.member.ServerMemberUnbanListener;
+import org.javacord.api.listener.server.role.UserRoleAddListener;
+import org.javacord.api.listener.server.role.UserRoleRemoveListener;
 import org.spongepowered.api.Sponge;
+
+import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * @author dags <dags@dags.me>
  */
-public class DiscordClientService implements UserRoleAddListener, UserRoleRemoveListener, ServerMemberBanListener, ServerMemberUnbanListener {
+public class DiscordClientService implements UserRoleAddListener, UserRoleRemoveListener, ServerMemberBanListener, ServerMemberUnbanListener, LostConnectionListener {
 
     private static volatile boolean firstStart = true;
 
-    private final Logger logger = LoggerFactory.getLogger("DiscordClient");
-    private final Consumer<DiscordClientService> callback;
-    private final DiscordAPI api;
-    private final String guild;
+    private static final Object lock = new Object();
 
+    private final Logger logger = LogManager.getLogger("DiscordClient");
+    private final Consumer<DiscordClientService> callback;
+    private final String guild;
+    private final String token;
+
+    private DiscordApi api = null;
     private volatile boolean connected = false;
 
     private DiscordClientService(String guild, String token, Consumer<DiscordClientService> callback) {
-        this.api = Javacord.getApi(token, true);
         this.callback = callback;
         this.guild = guild;
-        this.api.registerListener(this);
+        this.token = token;
     }
 
     public boolean isConnected() {
@@ -58,58 +62,97 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
         api.disconnect();
     }
 
-    private void connect() {
-        final DiscordClientService instance = this;
-
-        api.connect(new FutureCallback<DiscordAPI>() {
-            @Override
-            public void onSuccess(@Nullable DiscordAPI result) {
-                logger.info("Successfully connected to Discord");
-                callback.accept(instance);
-                connected = true;
-                if (firstStart) {
-                    firstStart = false;
-                    Sponge.getServiceManager().provide(DiscordMessageService.class)
-                            .ifPresent(DiscordMessageService::sendStarting);
-                }
+    private <T> Optional<T> query(Function<DiscordApi, T> func, T def) {
+        if (api != null) {
+            T result;
+            synchronized (lock) {
+                result = func.apply(api);
             }
+            return Optional.ofNullable(result);
+        }
+        return Optional.ofNullable(def);
+    }
 
-            @Override
-            public void onFailure(Throwable t) {
-                logger.warn("Unable to connect ot Discord!");
+    private <T> Optional<T> query(Function<DiscordApi, Optional<T>> func) {
+        if (api == null) {
+            return Optional.empty();
+        }
+        Optional<T> result;
+        synchronized (lock) {
+            result = func.apply(api);
+        }
+        return result;
+    }
+
+    private void connect() {
+        new DiscordApiBuilder().setToken(token).login().handle(this::handleConnect);
+    }
+
+    private Object handleConnect(DiscordApi api, Throwable error) {
+        if (error != null) {
+            logger.warn("Unable to connect ot Discord: {}", error);
+            synchronized (lock) {
                 connected = false;
             }
-        });
-    }
-
-    @Override
-    public void onUserRoleAdd(DiscordAPI discordAPI, User user, Role role) {
-        if (role.getServer().getId().equals(guild)) {
-            ChangeRoleEvent event = ChangeRoleEvent.add(role.getName().toLowerCase(), user.getId());
-            PluginHelper.postEvent(event);
+            return null;
         }
-    }
+        logger.info("Successfully connected to Discord");
+        synchronized (lock) {
+            connected = false;
 
-    @Override
-    public void onUserRoleRemove(DiscordAPI discordAPI, User user, Role role) {
-        if (role.getServer().getId().equals(guild)) {
-            ChangeRoleEvent event = ChangeRoleEvent.remove(role.getName().toLowerCase(), user.getId());
-            PluginHelper.postEvent(event);
+            final DiscordClientService service = this;
+            PluginHelper.sync(() -> callback.accept(service));
+
+            if (firstStart) {
+                firstStart = false;
+                Sponge.getServiceManager().provide(DiscordMessageService.class)
+                        .ifPresent(DiscordMessageService::sendStarting);
+            }
         }
+        return null;
     }
 
     @Override
-    public void onServerMemberBan(DiscordAPI discordAPI, User user, Server server) {
-        if (server.getId().equals(guild)) {
+    public void onServerMemberBan(ServerMemberBanEvent event) {
+        Server server = event.getServer();
+        User user = event.getUser();
+        if (server.getIdAsString().equals(guild)) {
             logger.info("Banned Discord user {}", user.getName());
         }
     }
 
     @Override
-    public void onServerMemberUnban(DiscordAPI discordAPI, String s, Server server) {
-        if (server.getId().equals(guild)) {
-            logger.info("UnBanned Discord user id {}", s);
+    public void onServerMemberUnban(ServerMemberUnbanEvent event) {
+        Server server = event.getServer();
+        if (server.getIdAsString().equals(guild)) {
+            logger.info("UnBanned Discord user id {}", event.getUser().getIdAsString());
         }
+    }
+
+    @Override
+    public void onUserRoleAdd(UserRoleAddEvent event) {
+        Role role = event.getRole();
+        User user = event.getUser();
+        if (role.getServer().getIdAsString().equals(guild)) {
+            ChangeRoleEvent e = ChangeRoleEvent.add(role.getName().toLowerCase(), user.getIdAsString());
+            PluginHelper.postEvent(e);
+        }
+    }
+
+    @Override
+    public void onUserRoleRemove(UserRoleRemoveEvent event) {
+        Role role = event.getRole();
+        User user = event.getUser();
+        if (role.getServer().getIdAsString().equals(guild)) {
+            ChangeRoleEvent e = ChangeRoleEvent.remove(role.getName().toLowerCase(), user.getIdAsString());
+            PluginHelper.postEvent(e);
+        }
+    }
+
+    @Override
+    public void onLostConnection(LostConnectionEvent event) {
+        logger.info("Lost connection to server, attempting reconnect");
+        connect();
     }
 
     public void getRolesAsync(String snowflake, Consumer<Set<String>> callback) {
@@ -118,25 +161,25 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
     }
 
     public void syncRoles(String snowflake, Map<String, Boolean> values) {
-        Server server = api.getServerById(guild);
-        if (server == null) {
+        Optional<Server> server = query(api -> api.getServerById(guild));
+        if (!server.isPresent()) {
             return;
         }
 
-        User user = server.getMemberById(snowflake);
-        if (user == null) {
+        Optional<User> user = server.get().getMemberById(snowflake);
+        if (!user.isPresent()) {
             return;
         }
 
         List<Role> roles = new LinkedList<>();
-        for (Role role : user.getRoles(server)) {
+        for (Role role : user.get().getRoles(server.get())) {
             if (values.containsKey(role.getName().toLowerCase())) {
                 continue;
             }
             roles.add(role);
         }
 
-        for (Role role : server.getRoles()) {
+        for (Role role : server.get().getRoles()) {
             // only add owned roles
             String node = String.format(DiscordSync.ROLE_PERMISSION, role.getName().toLowerCase());
             if (values.getOrDefault(node, false)) {
@@ -144,14 +187,17 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
             }
         }
 
-        server.updateRoles(user, roles.toArray(new Role[roles.size()]));
+        server.get().updateRoles(user.get(), roles);
     }
 
     private Set<String> getRolesBlocking(String snowflake) {
         try {
-            Future<User> future = api.getUserById(snowflake);
-            User user = future.get();
+            Optional<Future<User>> future = query(api -> api.getUserById(snowflake), null);
+            if (!future.isPresent()) {
+                return Collections.emptySet();
+            }
 
+            User user = future.get().get();
             HashSet<String> roles = new HashSet<>();
             for (Server server : api.getServers()) {
                 for (Role role : user.getRoles(server)) {
@@ -167,7 +213,7 @@ public class DiscordClientService implements UserRoleAddListener, UserRoleRemove
 
     public static void create(String guild, String token, DiscordMessageService messageService, Consumer<DiscordClientService> callback) {
         DiscordClientService service = new DiscordClientService(guild, token, callback);
-        service.api.registerListener(messageService);
+        service.api.addMessageCreateListener(messageService);
         service.connect();
     }
 }

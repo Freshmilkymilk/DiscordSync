@@ -1,15 +1,16 @@
 package me.dags.discordsync.discord;
 
 import com.google.common.collect.ImmutableList;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
-import de.btobastian.javacord.DiscordAPI;
-import de.btobastian.javacord.entities.message.Message;
-import de.btobastian.javacord.listener.message.MessageCreateListener;
-import java.util.List;
 import me.dags.discordsync.PluginHelper;
+import okhttp3.FormBody;
+import org.javacord.api.entity.message.Message;
+import org.javacord.api.event.message.MessageCreateEvent;
+import org.javacord.api.listener.message.MessageCreateListener;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.text.Text;
+
+import java.io.IOException;
+import java.util.List;
 
 /**
  * @author dags <dags@dags.me>
@@ -29,14 +30,15 @@ public class DiscordMessageService implements MessageCreateListener {
     }
 
     @Override
-    public void onMessageCreate(DiscordAPI discord, Message message) {
-        if (message.getAuthor().isBot()) {
+    public void onMessageCreate(MessageCreateEvent event) {
+        Message message = event.getMessage();
+        if (message.getAuthor().isBotOwner()) {
             return;
         }
 
         if (message.getContent().startsWith("!")) {
             for (DiscordChannel channel : channels) {
-                if (channel.getId().equals(message.getChannelReceiver().getId())) {
+                if (channel.getId().equals(message.getChannel().getIdAsString())) {
                     DiscordCommands.getInstance().process(message);
                     return;
                 }
@@ -44,9 +46,9 @@ public class DiscordMessageService implements MessageCreateListener {
         }
 
         for (DiscordChannel channel : channels) {
-            if (channel.getId().equals(message.getChannelReceiver().getId())) {
-                String nick = message.getAuthor().getNickname(message.getChannelReceiver().getServer());
-                String source = nick != null ? nick : message.getAuthor().getName();
+            if (channel.getId().equals(message.getChannel().getIdAsString())) {
+                String name = message.getAuthor().getDisplayName();
+                String source = name != null ? name : message.getAuthor().getName();
                 String content = message.getContent();
                 Text text = channel.getTemplate().with("name", source).with("message", content).render();
                 PluginHelper.sync(() -> Sponge.getServer().getBroadcastChannel().send(text));
@@ -92,21 +94,21 @@ public class DiscordMessageService implements MessageCreateListener {
     }
 
     private void sendAsync(DiscordChannel channel, String name, String avatar, String content) {
-        Unirest.post(channel.getWebhook())
-                .field("username", name)
-                .field("avatar_url", avatar)
-                .field("content", content)
-                .asStringAsync();
+        PluginHelper.post(channel.getWebhook(), new FormBody.Builder()
+                .add("username", name)
+                .add("avatar_url", avatar)
+                .add("content", content)
+                .build());
     }
 
     private void sendSync(DiscordChannel channel, String name, String avatar, String content) {
         try {
-            Unirest.post(channel.getWebhook())
-                    .field("username", name)
-                    .field("avatar_url", avatar)
-                    .field("content", content)
-                    .asString();
-        } catch (UnirestException e) {
+            PluginHelper.postSync(channel.getWebhook(), new FormBody.Builder()
+                    .add("username", name)
+                    .add("avatar_url", avatar)
+                    .add("content", content)
+                    .build());
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
