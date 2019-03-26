@@ -1,9 +1,9 @@
-package me.dags.discordsync.discord;
+package me.dags.discordsync.config;
 
-import java.text.MessageFormat;
-import me.dags.discordsync.Channels;
 import me.dags.textmu.MarkupSpec;
 import me.dags.textmu.MarkupTemplate;
+
+import java.text.MessageFormat;
 
 /**
  * @author dags <dags@dags.me>
@@ -26,12 +26,12 @@ public class DiscordChannel {
         return id;
     }
 
-    public String getWebhook() {
-        return webhook;
-    }
-
     public MarkupTemplate getTemplate() {
         return template;
+    }
+
+    public String getWebhook() {
+        return webhook;
     }
 
     public static class Format {
@@ -58,12 +58,8 @@ public class DiscordChannel {
             this.avatar = avatar;
         }
 
-        public String getTitle(Object... args) {
-            return MessageFormat.format(title, args);
-        }
-
-        public String getMessage(Object... args) {
-            return MessageFormat.format(message, args);
+        public String getAvatar(Object... args) {
+            return MessageFormat.format(avatar, args);
         }
 
         public String getConnect(Object... args) {
@@ -74,6 +70,10 @@ public class DiscordChannel {
             return MessageFormat.format(disconnect, args);
         }
 
+        public String getMessage(Object... args) {
+            return MessageFormat.format(message, args);
+        }
+
         public String getStart(Object... args) {
             return MessageFormat.format(start, args);
         }
@@ -82,8 +82,8 @@ public class DiscordChannel {
             return MessageFormat.format(stop, args);
         }
 
-        public String getAvatar(Object... args) {
-            return MessageFormat.format(avatar, args);
+        public String getTitle(Object... args) {
+            return MessageFormat.format(title, args);
         }
     }
 }

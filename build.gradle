@@ -1,20 +1,12 @@
 plugins {
     id "com.github.johnrengelman.shadow" version "4.0.2"
-    id "org.spongepowered.plugin" version "0.8.1"
+    id "java"
 }
 
 group = "me.dags"
 version = "3.0-SNAPSHOT"
+sourceCompatibility = 1.8
 def spongeVersion = "7.1.0-SNAPSHOT"
-
-sponge {
-    plugin.id = "discordsync"
-    plugin.meta {
-        name = "DiscordSync"
-        version = "2.0"
-        description = "Sync your server with Discord"
-    }
-}
 
 configurations {
     shade
@@ -22,16 +14,20 @@ configurations {
 }
 
 repositories {
-    mavenCentral()
     jcenter()
-    maven { url "http://repo.bastian-oppermann.de" }
+    mavenCentral()
     maven { url "https://jitpack.io" }
+    maven { url "http://repo.spongepowered.org/maven" }
 }
 
 dependencies {
-    compile "org.spongepowered:spongeapi:${spongeVersion}"
-    shade "org.javacord:javacord:3.0.3"
-    shade "com.github.dags-:CommandBus:2.0.6"
+    compileOnly "org.spongepowered:spongeapi:${spongeVersion}"
+    shade ("net.dv8tion:JDA:3.8.3_462") {
+        exclude module: "opus-java"
+    }
+    shade ("com.github.dags-:CommandBus:2.0.1") {
+        transitive = false
+    }
     shade ("com.github.dags-:TextMU:0.2") {
         transitive = false
     }
@@ -44,5 +40,5 @@ shadowJar {
     archiveName = "${baseName}-${version}-${spongeVersion}.jar"
 }
 
-jar.dependsOn shadowJar
+build.dependsOn shadowJar
 jar.enabled = false

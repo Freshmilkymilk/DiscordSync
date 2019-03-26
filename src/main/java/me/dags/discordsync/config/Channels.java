@@ -1,4 +1,4 @@
-package me.dags.discordsync;
+package me.dags.discordsync.config;
 
 /**
  * @author dags <dags@dags.me>

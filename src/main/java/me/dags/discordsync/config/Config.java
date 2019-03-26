@@ -1,4 +1,4 @@
-package me.dags.discordsync;
+package me.dags.discordsync.config;
 
 import java.util.Collections;
 import java.util.List;
