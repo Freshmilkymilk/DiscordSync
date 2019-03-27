@@ -37,6 +37,21 @@ shadowJar {
     configurations = [project.configurations.shade]
     relocate "me.dags.commandbus.", "me.dags.discordsync.libs.commandbus."
     relocate "me.dags.textmu.", "me.dags.discordsync.libs.textmu."
+
+    // required due to forge
+    relocate "org.apache.commons.collections4.", "me.dags.discordsync.libs.collections4."
+
+    // not required but might as well try avoid as many conflicts as possible
+    relocate "org.intellij.", "me.dags.discordsync.libs.intellij."
+    relocate "org.jetbrains.", "me.dags.discordsync.libs.jetbrains."
+    relocate "org.json.", "me.dags.discordsync.libs.json."
+    relocate "okio.", "me.dags.discordsync.libs.okio."
+    relocate "okhttp3.", "me.dags.discordsync.libs.okhttp3."
+    relocate "net.dv8tion.", "me.dags.discordsync.libs.dv8tion."
+    relocate "gnu.trove.", "me.dags.discordsync.libs.trove."
+    relocate "com.iwebpp.", "me.dags.discordsync.libs.iwebpp."
+    relocate "com.neovisionaries.", "me.dags.discordsync.libs.neovisionaries."
+
     archiveName = "${baseName}-${version}-${spongeVersion}.jar"
 }
 
