@@ -2,10 +2,10 @@ package me.dags.discordsync;
 
 import me.dags.discordsync.config.Channels;
 import me.dags.discordsync.config.Config;
-import me.dags.discordsync.service.DiscoService;
 import me.dags.discordsync.config.DiscordChannel;
 import me.dags.discordsync.event.MessageEvent;
 import me.dags.discordsync.event.RoleEvent;
+import me.dags.discordsync.service.DiscoService;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.entity.living.player.Player;
@@ -77,7 +77,7 @@ public class EventHandler {
                 String name = player.getName();
                 String title = format.getTitle(name, serverName);
                 String avatar = format.getAvatar(name);
-                String content = format.getMessage(name, event.getRawMessage().toPlain());
+                String content = getContent(player, event);
                 MessageEvent message = new MessageEvent(guildId, title, avatar, content);
                 for (DiscordChannel channel : channels) {
                     service.sendMessage(channel, message);
@@ -145,5 +145,9 @@ public class EventHandler {
                 || c == MessageChannel.TO_PLAYERS
                 || c == Sponge.getServer().getBroadcastChannel()
                 || c.getClass().getSimpleName().equals("BoopableChannel");
+    }
+
+    public static String getContent(CommandSource source, MessageChannelEvent.Chat chat) {
+        return MessageProcessor.processContent(source::hasPermission, chat.getRawMessage().toPlain());
     }
 }
