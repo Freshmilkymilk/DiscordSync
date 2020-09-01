@@ -6,7 +6,8 @@ plugins {
 group = "me.dags"
 version = "3.1-SNAPSHOT"
 sourceCompatibility = 1.8
-def spongeVersion = "7.2.0-SNAPSHOT"
+def spongeVersion = "7.2.0"
+def spongeChannel = "SNAPSHOT"
 
 configurations {
     shade
@@ -21,7 +22,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly "org.spongepowered:spongeapi:${spongeVersion}"
+    compileOnly "org.spongepowered:spongeapi:${spongeVersion}-${spongeChannel}"
     shade ("net.dv8tion:JDA:3.8.3_462") {
         exclude module: "opus-java"
     }
@@ -52,7 +53,7 @@ shadowJar {
     relocate "com.iwebpp.", "me.dags.discordsync.libs.iwebpp."
     relocate "com.neovisionaries.", "me.dags.discordsync.libs.neovisionaries."
 
-    archiveName = "${baseName}-${version}-${spongeVersion}.jar"
+    archiveName = "${baseName}-${spongeVersion}-${version}.jar"
 }
 
 build.dependsOn shadowJar
