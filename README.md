@@ -1,2 +1,2 @@
 # DiscordSync
-sync your Sponge and Discord servers
+Sync chat between a discord and minecraft server
