@@ -44,7 +44,7 @@ public class MessageProcessor {
         private MentionType(String type, boolean any) {
             this.any = any;
             this.type = type;
-            this.permission = "discordsync.mention." + type;
+            this.permission = DiscordSync.ID + ".mention." + type;
         }
 
         private boolean matches(String text) {
