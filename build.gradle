@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "me.dags"
-version = "3.1-SNAPSHOT"
+version = "3.2-SNAPSHOT"
 sourceCompatibility = 1.8
 def spongeVersion = "7.2.0"
 def spongeChannel = "SNAPSHOT"
@@ -23,8 +23,11 @@ repositories {
 
 dependencies {
     compileOnly "org.spongepowered:spongeapi:${spongeVersion}-${spongeChannel}"
-    shade ("net.dv8tion:JDA:3.8.3_462") {
+    shade ("net.dv8tion:JDA:4.2.0_204") {
+        // text-only
         exclude module: "opus-java"
+        // provided by sponge
+        exclude module: "slf4j-api"
     }
     shade ("com.github.dags-:CommandBus:2.0.1") {
         transitive = false
@@ -36,22 +39,28 @@ dependencies {
 
 shadowJar {
     configurations = [project.configurations.shade]
+
+    // PLUGIN DEPENDENCIES //
+    // sponge libs
     relocate "me.dags.commandbus.", "me.dags.discordsync.libs.commandbus."
     relocate "me.dags.textmu.", "me.dags.discordsync.libs.textmu."
 
-    // required due to forge
-    relocate "org.apache.commons.collections4.", "me.dags.discordsync.libs.collections4."
-
-    // not required but might as well try avoid as many conflicts as possible
-    relocate "org.intellij.", "me.dags.discordsync.libs.intellij."
-    relocate "org.jetbrains.", "me.dags.discordsync.libs.jetbrains."
-    relocate "org.json.", "me.dags.discordsync.libs.json."
+    // JDA DEPENDENCIES //
+    // http/json libs
     relocate "okio.", "me.dags.discordsync.libs.okio."
     relocate "okhttp3.", "me.dags.discordsync.libs.okhttp3."
-    relocate "net.dv8tion.", "me.dags.discordsync.libs.dv8tion."
-    relocate "gnu.trove.", "me.dags.discordsync.libs.trove."
-    relocate "com.iwebpp.", "me.dags.discordsync.libs.iwebpp."
     relocate "com.neovisionaries.", "me.dags.discordsync.libs.neovisionaries."
+    relocate "com.fasterxml.", "me.dags.discordsync.libs.fasterxml."
+    // jda jar packages
+    relocate "com.iwebpp.", "me.dags.discordsync.libs.iwebpp."
+    relocate "net.dv8tion.", "me.dags.discordsync.libs.dv8tion."
+    // collection libs
+    relocate "gnu.trove.", "me.dags.discordsync.libs.trove."
+    relocate "org.apache.commons.collections4.", "me.dags.discordsync.libs.collections4."
+    // utils
+    relocate "javax.", "me.dags.discordsync.libs.findbugs."
+    relocate "org.intellij.", "me.dags.discordsync.libs.intellij."
+    relocate "org.jetbrains.", "me.dags.discordsync.libs.jetbrains."
 
     archiveName = "${baseName}-${spongeVersion}-${version}.jar"
 }

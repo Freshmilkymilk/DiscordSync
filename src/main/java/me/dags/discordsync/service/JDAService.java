@@ -1,20 +1,22 @@
 package me.dags.discordsync.service;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import me.dags.discordsync.PluginHelper;
 import me.dags.discordsync.config.DiscordChannel;
 import me.dags.discordsync.event.MessageEvent;
 import me.dags.discordsync.event.RoleEvent;
-import net.dv8tion.jda.core.JDA;
-import net.dv8tion.jda.core.JDABuilder;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.events.DisconnectEvent;
-import net.dv8tion.jda.core.events.ReadyEvent;
-import net.dv8tion.jda.core.events.ReconnectedEvent;
-import net.dv8tion.jda.core.events.guild.member.GuildMemberRoleAddEvent;
-import net.dv8tion.jda.core.events.guild.member.GuildMemberRoleRemoveEvent;
-import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
-import net.dv8tion.jda.core.hooks.AnnotatedEventManager;
-import net.dv8tion.jda.core.hooks.SubscribeEvent;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.events.DisconnectEvent;
+import net.dv8tion.jda.api.events.ReadyEvent;
+import net.dv8tion.jda.api.events.ReconnectedEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleAddEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleRemoveEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.hooks.AnnotatedEventManager;
+import net.dv8tion.jda.api.hooks.SubscribeEvent;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.MediaType;
@@ -22,17 +24,18 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.security.auth.login.LoginException;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.util.Optional;
 
 public class JDAService implements DiscoService {
 
-    private static final Logger logger = LoggerFactory.getLogger("JDADiscordService");
+    private static final Logger LOGGER = LoggerFactory.getLogger("JDADiscordService");
+    private static final JsonFactory JSON_FACTORY = JsonFactory.builder().build();
 
     private final JDA api;
     private final OkHttpClient client = new OkHttpClient.Builder().build();
@@ -55,7 +58,7 @@ public class JDAService implements DiscoService {
         String avatar = event.getAuthor().getAvatarUrl();
         String content = event.getMessage().getContentRaw();
         PluginHelper.postEvent(new MessageEvent(guild, channel, author, avatar, content));
-        logger.debug("Message: {}: {}", author, content);
+        LOGGER.debug("Message: {}: {}", author, content);
     }
 
     @SubscribeEvent
@@ -64,7 +67,7 @@ public class JDAService implements DiscoService {
             RoleEvent add = RoleEvent.add(role.getName().toLowerCase(), event.getUser().getId());
             PluginHelper.postEvent(add);
         }
-        logger.info("Role Add: {}: {}", event.getMember().getNickname(), event.getRoles());
+        LOGGER.info("Role Add: {}: {}", event.getMember().getNickname(), event.getRoles());
     }
 
     @SubscribeEvent
@@ -73,27 +76,27 @@ public class JDAService implements DiscoService {
             RoleEvent remove = RoleEvent.remove(role.getName().toLowerCase(), event.getUser().getId());
             PluginHelper.postEvent(remove);
         }
-        logger.info("Role Remove: {}: {}", event.getMember().getNickname(), event.getRoles());
+        LOGGER.info("Role Remove: {}: {}", event.getMember().getNickname(), event.getRoles());
     }
 
     @SubscribeEvent
     public void onServiceDisconnect(DisconnectEvent event) {
-        logger.info("service disconnected");
+        LOGGER.info("service disconnected");
     }
 
     @SubscribeEvent
     public void onServiceReady(ReadyEvent event) {
-        logger.info("service ready");
+        LOGGER.info("service ready");
     }
 
     @SubscribeEvent
     public void onServiceReconnect(ReconnectedEvent event) {
-        logger.info("service reconnected");
+        LOGGER.info("service reconnected");
     }
 
     @Override
     public void shutdown() {
-        logger.info("shutting down");
+        LOGGER.info("shutting down");
         api.shutdown();
         client.dispatcher().executorService().shutdown();
     }
@@ -103,12 +106,12 @@ public class JDAService implements DiscoService {
         post(channel.getWebhook(), message).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-
+                LOGGER.error("Error performing async request.", e);
             }
 
             @Override
             public void onResponse(Call call, Response response) {
-
+                handleResponse(response);
             }
         });
     }
@@ -116,25 +119,19 @@ public class JDAService implements DiscoService {
     @Override
     public void sendMessageSync(DiscordChannel channel, MessageEvent message) {
         try {
-            post(channel.getWebhook(), message).execute();
+            handleResponse(post(channel.getWebhook(), message).execute());
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error("Error performing sync request.", e);
         }
     }
 
     private Call post(String url, MessageEvent message) {
-        JSONObject json = new JSONObject();
-        json.put("username", message.getAuthor());
-        json.put("avatar_url", message.getAvatar());
-        json.put("content", message.getContent());
-
-        RequestBody body = RequestBody.create(MediaType.get("application/json"), json.toString());
-
+        String json = JDAService.encode(message);
+        RequestBody body = RequestBody.create(MediaType.get("application/json"), json);
         Request request = new Request.Builder()
                 .post(body)
                 .url(url)
                 .build();
-
         return client.newCall(request);
     }
 
@@ -144,7 +141,34 @@ public class JDAService implements DiscoService {
             JDAService service = new JDAService(api);
             return Optional.of(service);
         } catch (LoginException e) {
+            LOGGER.error("Error connecting to discord api.", e);
             return Optional.empty();
+        }
+    }
+
+    private static void handleResponse(Response response) {
+        try (Response r = response) {
+            if (!r.isSuccessful()) {
+                LOGGER.error("Failed to post message. Response: {}", r.message());
+            }
+        }
+    }
+
+    private static String encode(MessageEvent message) {
+        try {
+            StringWriter writer = new StringWriter(128);
+            JsonGenerator generator = JSON_FACTORY.createGenerator(writer);
+
+            generator.writeStartObject();
+            generator.writeStringField("username", message.getAuthor());
+            generator.writeStringField("avatar_url", message.getAvatar());
+            generator.writeStringField("content", message.getContent());
+            generator.writeEndObject();
+
+            return writer.toString();
+        } catch (IOException e) {
+            LOGGER.error("Error encoding message.", e);
+            return "{}";
         }
     }
 }
