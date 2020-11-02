@@ -1,7 +1,7 @@
 package me.dags.discordsync.config;
 
-import me.dags.textmu.MarkupSpec;
-import me.dags.textmu.MarkupTemplate;
+import me.dags.text.MUSpec;
+import me.dags.text.template.MUTemplate;
 
 import java.text.MessageFormat;
 
@@ -10,11 +10,11 @@ import java.text.MessageFormat;
  */
 public class DiscordChannel {
 
-    private static final MarkupSpec spec = MarkupSpec.create();
+    private static final MUSpec spec = MUSpec.create();
 
     private final String id;
     private final String webhook;
-    private final MarkupTemplate template;
+    private final MUTemplate template;
 
     public DiscordChannel(String id, String template, String webhook) {
         this.id = id;
@@ -26,7 +26,7 @@ public class DiscordChannel {
         return id;
     }
 
-    public MarkupTemplate getTemplate() {
+    public MUTemplate getTemplate() {
         return template;
     }
 

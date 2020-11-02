@@ -137,10 +137,10 @@ public class JDAService implements DiscoService {
 
     public static Optional<DiscoService> create(String token) {
         try {
-            JDA api = new JDABuilder(token).build();
+            JDA api = JDABuilder.createDefault(token).build().awaitReady();
             JDAService service = new JDAService(api);
             return Optional.of(service);
-        } catch (LoginException e) {
+        } catch (LoginException | InterruptedException e) {
             LOGGER.error("Error connecting to discord api.", e);
             return Optional.empty();
         }

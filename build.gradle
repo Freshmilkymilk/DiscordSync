@@ -6,7 +6,7 @@ plugins {
 group = "me.dags"
 version = "3.2-SNAPSHOT"
 sourceCompatibility = 1.8
-def spongeVersion = "7.2.0"
+def spongeVersion = "7.3.0"
 def spongeChannel = "SNAPSHOT"
 
 configurations {
@@ -23,16 +23,16 @@ repositories {
 
 dependencies {
     compileOnly "org.spongepowered:spongeapi:${spongeVersion}-${spongeChannel}"
-    shade ("net.dv8tion:JDA:4.2.0_204") {
+    shade ("net.dv8tion:JDA:4.2.0_168") {
         // text-only
         exclude module: "opus-java"
         // provided by sponge
         exclude module: "slf4j-api"
     }
-    shade ("com.github.dags-:CommandBus:2.0.1") {
+    shade ("com.github.dags-:CommandBus:2.0.7") {
         transitive = false
     }
-    shade ("com.github.dags-:TextMU:0.2") {
+    shade ("com.github.dags-:TextMU:0.4.3") {
         transitive = false
     }
 }
@@ -58,9 +58,11 @@ shadowJar {
     relocate "gnu.trove.", "me.dags.discordsync.libs.trove."
     relocate "org.apache.commons.collections4.", "me.dags.discordsync.libs.collections4."
     // utils
-    relocate "javax.", "me.dags.discordsync.libs.findbugs."
+    //relocate "javax.", "me.dags.discordsync.libs.findbugs."
     relocate "org.intellij.", "me.dags.discordsync.libs.intellij."
     relocate "org.jetbrains.", "me.dags.discordsync.libs.jetbrains."
+
+    exclude('module-info.class')
 
     archiveName = "${baseName}-${spongeVersion}-${version}.jar"
 }
